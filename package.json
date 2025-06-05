@@ -1,0 +1,149 @@
+{
+  "name": "scrapeyard",
+  "displayName": "Scrapeyard",
+  "description": "Parse and transform files using custom JavaScript and TypeScript functions",
+  "publisher": "henry-dorsett-case",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "views": {
+      "explorer": [
+        {
+          "id": "fileParserFunctions",
+          "name": "Parser Functions",
+          "when": "true"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "fileParser.refreshFunctions",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "fileParser.createFunction",
+        "title": "Create Function",
+        "icon": "$(add)"
+      },
+      {
+        "command": "fileParser.createTypeScriptFunction",
+        "title": "Create TypeScript Function",
+        "icon": "$(add)"
+      },
+      {
+        "command": "fileParser.editFunction",
+        "title": "Edit Function",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "fileParser.deleteFunction",
+        "title": "Delete Function",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "fileParser.runOnFile",
+        "title": "Run on Current File"
+      },
+      {
+        "command": "fileParser.runOnSelection",
+        "title": "Run on Selection"
+      },
+      {
+        "command": "fileParser.setNodeModulesPath",
+        "title": "Set Node Modules Path"
+      },
+      {
+        "command": "fileParser.showContextMenu",
+        "title": "Apply Functions..."
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "fileParser.refreshFunctions",
+          "when": "view == fileParserFunctions",
+          "group": "navigation"
+        },
+        {
+          "command": "fileParser.createFunction",
+          "when": "view == fileParserFunctions",
+          "group": "navigation"
+        },
+        {
+          "command": "fileParser.createTypeScriptFunction",
+          "when": "view == fileParserFunctions",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "fileParser.editFunction",
+          "when": "view == fileParserFunctions && viewItem == parserFunction",
+          "group": "inline"
+        },
+        {
+          "command": "fileParser.deleteFunction",
+          "when": "view == fileParserFunctions && viewItem == parserFunction",
+          "group": "inline"
+        },
+        {
+          "command": "fileParser.runOnFile",
+          "when": "view == fileParserFunctions && viewItem == parserFunction"
+        },
+        {
+          "command": "fileParser.runOnSelection",
+          "when": "view == fileParserFunctions && viewItem == parserFunction"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "fileParser.showContextMenu",
+          "when": "editorHasSelection",
+          "group": "1_modification",
+          "title": "Scrapeyard"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "File Parser Extension",
+      "properties": {
+        "fileParser.nodeModulesPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to node_modules directory for importing functions"
+        },
+        "fileParser.functionsPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to directory containing parser functions"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "pin": "npm run package && cursor --install-extension scrapeyard-0.0.1.vsix"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "typescript": "^4.9.4",
+    "@vscode/vsce": "^2.22.0"
+  },
+  "dependencies": {
+    "ts-node": "^10.9.1"
+  }
+}
