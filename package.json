@@ -14,6 +14,10 @@
     "onStartupFinished"
   ],
   "main": "./out/extension.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/henry-dorsett-case/scrapeyard"
+  },
   "contributes": {
     "views": {
       "explorer": [
