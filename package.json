@@ -3,7 +3,7 @@
   "displayName": "Scrapeyard",
   "description": "Parse and transform files using custom TypeScript functions",
   "publisher": "henry-dorsett-case",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -23,107 +23,194 @@
     "views": {
       "explorer": [
         {
-          "id": "fileParserFunctions",
-          "name": "Parser Functions",
+          "id": "scrapeyardFunctions",
+          "name": "Scrapeyard Functions",
+          "when": "true"
+        },
+        {
+          "id": "scrapeyardPipelines",
+          "name": "Scrapeyard Pipelines",
           "when": "true"
         }
       ]
     },
     "commands": [
       {
-        "command": "fileParser.refreshFunctions",
+        "command": "scrapeyard.refreshFunctions",
         "title": "Refresh",
         "icon": "$(refresh)"
       },
       {
-        "command": "fileParser.createTypeScriptFunction",
+        "command": "scrapeyard.createFunction",
         "title": "Create Function",
         "icon": "$(add)"
       },
       {
-        "command": "fileParser.editFunction",
+        "command": "scrapeyard.editFunction",
         "title": "Edit Function",
         "icon": "$(edit)"
       },
       {
-        "command": "fileParser.deleteFunction",
+        "command": "scrapeyard.deleteFunction",
         "title": "Delete Function",
         "icon": "$(trash)"
       },
       {
-        "command": "fileParser.runOnFile",
+        "command": "scrapeyard.runFunctionOnFile",
         "title": "Run on Current File"
       },
       {
-        "command": "fileParser.runOnSelection",
+        "command": "scrapeyard.runFunctionOnSelection",
         "title": "Run on Selection"
       },
       {
-        "command": "fileParser.setNodeModulesPath",
-        "title": "Set Node Modules Path"
+        "command": "scrapeyard.createPipeline",
+        "title": "Create Pipeline",
+        "icon": "$(add)"
       },
       {
-        "command": "fileParser.configureKeyboardShortcuts",
-        "title": "Configure Keyboard Shortcuts"
+        "command": "scrapeyard.editPipeline",
+        "title": "Edit Pipeline",
+        "icon": "$(edit)"
       },
       {
-        "command": "fileParser.syncKeyboardShortcuts",
-        "title": "Sync Keyboard Shortcuts"
+        "command": "scrapeyard.deletePipeline",
+        "title": "Delete Pipeline",
+        "icon": "$(trash)"
       },
       {
-        "command": "fileParser.showContextMenu",
-        "title": "Apply Functions..."
+        "command": "scrapeyard.runPipelineOnFile",
+        "title": "Run on Current File"
+      },
+      {
+        "command": "scrapeyard.runPipelineOnSelection",
+        "title": "Run on Selection"
+      },
+      {
+        "command": "scrapeyard.movePipelineStepUp",
+        "title": "Move Up",
+        "icon": "$(arrow-up)"
+      },
+      {
+        "command": "scrapeyard.movePipelineStepDown",
+        "title": "Move Down",
+        "icon": "$(arrow-down)"
+      },
+      {
+        "command": "scrapeyard.removePipelineStep",
+        "title": "Remove from Pipeline",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "scrapeyard.configureKeyboardShortcuts",
+        "title": "Configure Keyboard Shortcuts",
+        "icon": "$(keyboard)"
+      },
+      {
+        "command": "scrapeyard.syncKeyboardShortcuts",
+        "title": "Sync Keyboard Shortcuts",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "scrapeyard.updateShortcuts",
+        "title": "Update Shortcuts",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "scrapeyard.refreshAndSyncAll",
+        "title": "Refresh All & Sync",
+        "icon": "$(sync-ignored)"
+      },
+      {
+        "command": "scrapeyard.editShortcuts",
+        "title": "Edit Shortcuts",
+        "icon": "$(keyboard)"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "fileParser.refreshFunctions",
-          "when": "view == fileParserFunctions",
+          "command": "scrapeyard.refreshFunctions",
+          "when": "view == scrapeyardFunctions",
           "group": "navigation"
         },
         {
-          "command": "fileParser.createTypeScriptFunction",
-          "when": "view == fileParserFunctions",
+          "command": "scrapeyard.createFunction",
+          "when": "view == scrapeyardFunctions",
           "group": "navigation"
         },
         {
-          "command": "fileParser.configureKeyboardShortcuts",
-          "when": "view == fileParserFunctions",
+          "command": "scrapeyard.refreshAndSyncAll",
+          "when": "view == scrapeyardFunctions",
           "group": "navigation@2"
         },
         {
-          "command": "fileParser.syncKeyboardShortcuts",
-          "when": "view == fileParserFunctions",
+          "command": "scrapeyard.editShortcuts",
+          "when": "view == scrapeyardFunctions",
+          "group": "navigation@3"
+        },
+        {
+          "command": "scrapeyard.createPipeline",
+          "when": "view == scrapeyardPipelines",
+          "group": "navigation"
+        },
+        {
+          "command": "scrapeyard.refreshAndSyncAll",
+          "when": "view == scrapeyardPipelines",
           "group": "navigation@2"
         }
       ],
       "view/item/context": [
         {
-          "command": "fileParser.editFunction",
-          "when": "view == fileParserFunctions && viewItem == parserFunction",
+          "command": "scrapeyard.editFunction",
+          "when": "view == scrapeyardFunctions && viewItem == function",
           "group": "inline"
         },
         {
-          "command": "fileParser.deleteFunction",
-          "when": "view == fileParserFunctions && viewItem == parserFunction",
+          "command": "scrapeyard.deleteFunction",
+          "when": "view == scrapeyardFunctions && viewItem == function",
           "group": "inline"
         },
         {
-          "command": "fileParser.runOnFile",
-          "when": "view == fileParserFunctions && viewItem == parserFunction"
+          "command": "scrapeyard.runFunctionOnFile",
+          "when": "view == scrapeyardFunctions && viewItem == function"
         },
         {
-          "command": "fileParser.runOnSelection",
-          "when": "view == fileParserFunctions && viewItem == parserFunction"
-        }
-      ],
-      "editor/context": [
+          "command": "scrapeyard.runFunctionOnSelection",
+          "when": "view == scrapeyardFunctions && viewItem == function"
+        },
         {
-          "command": "fileParser.showContextMenu",
-          "when": "editorHasSelection",
-          "group": "1_modification",
-          "title": "Scrapeyard"
+          "command": "scrapeyard.editPipeline",
+          "when": "view == scrapeyardPipelines && viewItem == pipeline",
+          "group": "inline"
+        },
+        {
+          "command": "scrapeyard.deletePipeline",
+          "when": "view == scrapeyardPipelines && viewItem == pipeline",
+          "group": "inline"
+        },
+        {
+          "command": "scrapeyard.runPipelineOnFile",
+          "when": "view == scrapeyardPipelines && viewItem == pipeline"
+        },
+        {
+          "command": "scrapeyard.runPipelineOnSelection",
+          "when": "view == scrapeyardPipelines && viewItem == pipeline"
+        },
+        {
+          "command": "scrapeyard.movePipelineStepUp",
+          "when": "view == scrapeyardPipelines && viewItem == pipelineStep",
+          "group": "inline"
+        },
+        {
+          "command": "scrapeyard.movePipelineStepDown",
+          "when": "view == scrapeyardPipelines && viewItem == pipelineStep",
+          "group": "inline"
+        },
+        {
+          "command": "scrapeyard.removePipelineStep",
+          "when": "view == scrapeyardPipelines && viewItem == pipelineStep",
+          "group": "inline"
         }
       ]
     },

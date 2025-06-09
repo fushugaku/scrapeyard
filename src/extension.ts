@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { FunctionTreeDataProvider } from './functionTreeProvider';
 import { FunctionManager } from './functionManager';
 import { FunctionExecutor } from './functionExecutor';
+import { PipelineManager } from './pipelineManager';
+import { PipelineTreeProvider } from './pipelineTreeProvider';
 
 let dynamicCommands: vscode.Disposable[] = [];
 
@@ -10,305 +12,275 @@ export function activate(context: vscode.ExtensionContext) {
 
     const functionManager = new FunctionManager(context);
     const functionExecutor = new FunctionExecutor(functionManager);
-    const treeDataProvider = new FunctionTreeDataProvider(functionManager);
+    const pipelineManager = new PipelineManager(context, functionManager, functionExecutor);
 
-    // Register the tree data provider
-    vscode.window.registerTreeDataProvider('fileParserFunctions', treeDataProvider);
+    const functionTreeProvider = new FunctionTreeDataProvider(functionManager);
+    const pipelineTreeProvider = new PipelineTreeProvider(pipelineManager);
 
-    // Function to register dynamic commands for context menu
-    function registerDynamicCommands() {
-        // Clear existing dynamic commands
-        dynamicCommands.forEach(cmd => cmd.dispose());
-        dynamicCommands = [];
+    // Register tree views
+    vscode.window.createTreeView('scrapeyardFunctions', {
+        treeDataProvider: functionTreeProvider
+    });
 
-        const functions = functionManager.getFunctions();
+    vscode.window.createTreeView('scrapeyardPipelines', {
+        treeDataProvider: pipelineTreeProvider
+    });
 
-        functions.forEach(func => {
-            // Register context menu command
-            const contextCommandId = `fileParser.contextMenu.${func.name}`;
-            const contextCommand = vscode.commands.registerCommand(contextCommandId, async () => {
-                await functionExecutor.runOnSelection(func.name);
-            });
+    // Function management commands
+    let createFunctionCommand = vscode.commands.registerCommand('scrapeyard.createFunction', async () => {
+        await functionManager.createFunction();
+        functionTreeProvider.refresh();
+        pipelineTreeProvider.refresh(); // Refresh pipelines in case they reference functions
+    });
 
-            // Register dedicated commands for keyboard shortcuts
-            const runOnFileCommandId = `fileParser.run.${func.name}.onFile`;
-            const runOnFileCommand = vscode.commands.registerCommand(runOnFileCommandId, async () => {
-                await functionExecutor.runOnCurrentFile(func.name);
-            });
-
-            const runOnSelectionCommandId = `fileParser.run.${func.name}.onSelection`;
-            const runOnSelectionCommand = vscode.commands.registerCommand(runOnSelectionCommandId, async () => {
-                await functionExecutor.runOnSelection(func.name);
-            });
-
-            dynamicCommands.push(contextCommand, runOnFileCommand, runOnSelectionCommand);
-            context.subscriptions.push(contextCommand, runOnFileCommand, runOnSelectionCommand);
-        });
-
-        // Update context menu contributions
-        updateContextMenuContributions(functions);
-    }
-
-    // Function to update context menu contributions
-    function updateContextMenuContributions(functions: any[]) {
-        // Note: VSCode doesn't support dynamic menu contributions at runtime
-        // We need to use a different approach - we'll register all commands
-        // and use them through a picker when the context menu is triggered
-    }
-
-    // Register main context menu command
-    const contextMenuCommand = vscode.commands.registerCommand('fileParser.showContextMenu', async () => {
-        const functions = functionManager.getFunctions();
-
-        if (functions.length === 0) {
-            vscode.window.showInformationMessage('No functions available. Create some functions first!');
-            return;
-        }
-
-        const items = functions.map(func => ({
-            label: func.name,
-            description: func.description || 'No description',
-            detail: 'TypeScript',
-            iconPath: new vscode.ThemeIcon('symbol-class', new vscode.ThemeColor('charts.blue')),
-            functionName: func.name
-        }));
-
-        const selected = await vscode.window.showQuickPick(items, {
-            placeHolder: 'Select a function to run on the selected text',
-            matchOnDescription: true,
-            matchOnDetail: true
-        });
-
-        if (selected) {
-            await functionExecutor.runOnSelection(selected.functionName);
+    let editFunctionCommand = vscode.commands.registerCommand('scrapeyard.editFunction', async (item: any) => {
+        // Handle both direct string calls and tree item object calls
+        const functionName = typeof item === 'string' ? item : item?.label;
+        if (functionName) {
+            await functionManager.editFunction(functionName);
+        } else {
+            vscode.window.showErrorMessage('Could not determine function name');
         }
     });
 
-    // Register commands
-    const refreshCommand = vscode.commands.registerCommand('fileParser.refreshFunctions', () => {
-        treeDataProvider.refresh();
-        registerDynamicCommands(); // Re-register dynamic commands when functions change
-    });
+    let deleteFunctionCommand = vscode.commands.registerCommand('scrapeyard.deleteFunction', async (item: any) => {
+        // Handle both direct string calls and tree item object calls
+        const functionName = typeof item === 'string' ? item : item?.label;
+        if (functionName) {
+            // First remove the function from all pipelines
+            const pipelineCleanup = pipelineManager.removeFunctionFromAllPipelines(functionName);
 
-    const createTypeScriptFunctionCommand = vscode.commands.registerCommand('fileParser.createTypeScriptFunction', async () => {
-        await functionManager.createFunction('typescript');
-        treeDataProvider.refresh();
-        registerDynamicCommands(); // Re-register dynamic commands when functions change
-    });
+            // Then delete the function itself
+            await functionManager.deleteFunction(functionName);
+            functionTreeProvider.refresh();
+            pipelineTreeProvider.refresh();
 
-    const editFunctionCommand = vscode.commands.registerCommand('fileParser.editFunction', async (item: any) => {
-        await functionManager.editFunction(item.label);
-        treeDataProvider.refresh();
-    });
-
-    const deleteFunctionCommand = vscode.commands.registerCommand('fileParser.deleteFunction', async (item: any) => {
-        await functionManager.deleteFunction(item.label);
-        treeDataProvider.refresh();
-        registerDynamicCommands(); // Re-register dynamic commands when functions change
-    });
-
-    const runOnFileCommand = vscode.commands.registerCommand('fileParser.runOnFile', async (item: any) => {
-        await functionExecutor.runOnCurrentFile(item.label);
-    });
-
-    const runOnSelectionCommand = vscode.commands.registerCommand('fileParser.runOnSelection', async (item: any) => {
-        await functionExecutor.runOnSelection(item.label);
-    });
-
-    const setNodeModulesPathCommand = vscode.commands.registerCommand('fileParser.setNodeModulesPath', async () => {
-        const options: vscode.OpenDialogOptions = {
-            canSelectMany: false,
-            canSelectFolders: true,
-            canSelectFiles: false,
-            openLabel: 'Select node_modules directory'
-        };
-
-        const folderUri = await vscode.window.showOpenDialog(options);
-        if (folderUri && folderUri[0]) {
-            const config = vscode.workspace.getConfiguration('fileParser');
-            await config.update('nodeModulesPath', folderUri[0].fsPath, vscode.ConfigurationTarget.Global);
-            vscode.window.showInformationMessage(`Node modules path set to: ${folderUri[0].fsPath}`);
-        }
-    });
-
-    const configureKeyboardShortcutsCommand = vscode.commands.registerCommand('fileParser.configureKeyboardShortcuts', async () => {
-        const functions = functionManager.getFunctions();
-
-        if (functions.length === 0) {
-            vscode.window.showInformationMessage('No functions available. Create some functions first!');
-            return;
-        }
-
-        // Generate keybindings as JSON array
-        const keybindings: any[] = [];
-
-        functions.forEach((func, index) => {
-            keybindings.push({
-                key: `ctrl+shift+f${index + 1}`,
-                command: `fileParser.run.${func.name}.onSelection`,
-                when: "editorTextFocus"
-            });
-            keybindings.push({
-                key: `ctrl+alt+f${index + 1}`,
-                command: `fileParser.run.${func.name}.onFile`,
-                when: "editorTextFocus"
-            });
-        });
-
-        // Save to local shortcuts.json file
-        const functionsDir = functionManager.getFunctionsDirectory();
-        const shortcutsPath = require('path').join(functionsDir, 'shortcuts.json');
-
-        try {
-            require('fs').writeFileSync(shortcutsPath, JSON.stringify(keybindings, null, 2), 'utf8');
-
-            // Open the shortcuts.json file for editing
-            const document = await vscode.workspace.openTextDocument(shortcutsPath);
-            await vscode.window.showTextDocument(document);
-
-            vscode.window.showInformationMessage('Shortcuts saved to shortcuts.json. Edit as needed, then use "Sync Keyboard Shortcuts" to apply.');
-        } catch (error) {
-            vscode.window.showErrorMessage(`Failed to save shortcuts.json: ${error}`);
-        }
-    });
-
-    const syncKeyboardShortcutsCommand = vscode.commands.registerCommand('fileParser.syncKeyboardShortcuts', async () => {
-        try {
-            // Get shortcuts from local shortcuts.json file
-            const functionsDir = functionManager.getFunctionsDirectory();
-            const shortcutsPath = require('path').join(functionsDir, 'shortcuts.json');
-            const fs = require('fs');
-
-            let newKeybindings: any[] = [];
-
-            if (fs.existsSync(shortcutsPath)) {
-                try {
-                    const content = fs.readFileSync(shortcutsPath, 'utf8');
-                    newKeybindings = JSON.parse(content);
-                } catch (error) {
-                    vscode.window.showErrorMessage(`Failed to parse shortcuts.json: ${error}\n\nPlease check the file format.`);
-                    return;
-                }
-            } else {
-                vscode.window.showWarningMessage('No shortcuts.json file found. Use "Configure Keyboard Shortcuts" first.');
-                return;
+            // Show cleanup information if any pipelines were affected
+            if (pipelineCleanup.totalRemoved > 0) {
+                const pipelineList = pipelineCleanup.affectedPipelines.join(', ');
+                vscode.window.showInformationMessage(
+                    `Function '${functionName}' removed from ${pipelineCleanup.totalRemoved} step(s) in pipeline(s): ${pipelineList}`
+                );
             }
+        } else {
+            vscode.window.showErrorMessage('Could not determine function name');
+        }
+    });
 
-            // Get VS Code's keybindings file path
-            const os = require('os');
-            const path = require('path');
+    let refreshFunctionsCommand = vscode.commands.registerCommand('scrapeyard.refreshFunctions', () => {
+        functionTreeProvider.refresh();
+        pipelineTreeProvider.refresh();
 
-            let keybindingsPath: string;
-            const platform = os.platform();
+        // Update shortcuts when refreshing
+        const pipelines = pipelineManager.getPipelines();
+        functionManager.updateShortcutsWithPipelines(pipelines);
+    });
 
-            if (platform === 'darwin') {
-                // macOS
-                keybindingsPath = path.join(os.homedir(), 'Library', 'Application Support', 'Code', 'User', 'keybindings.json');
-            } else if (platform === 'win32') {
-                // Windows
-                keybindingsPath = path.join(os.homedir(), 'AppData', 'Roaming', 'Code', 'User', 'keybindings.json');
-            } else {
-                // Linux
-                keybindingsPath = path.join(os.homedir(), '.config', 'Code', 'User', 'keybindings.json');
-            }
+    // Function execution commands  
+    let runFunctionOnFileCommand = vscode.commands.registerCommand('scrapeyard.runFunctionOnFile', async (item: any) => {
+        const functionName = typeof item === 'string' ? item : item?.label;
+        if (functionName) {
+            await functionExecutor.runOnCurrentFile(functionName);
+        } else {
+            vscode.window.showErrorMessage('Could not determine function name');
+        }
+    });
 
-            console.log(`Syncing keyboard shortcuts...`);
-            console.log(`Shortcuts file: ${shortcutsPath}`);
-            console.log(`VS Code keybindings: ${keybindingsPath}`);
-            console.log(`Found ${newKeybindings.length} shortcuts to sync`);
+    let runFunctionOnSelectionCommand = vscode.commands.registerCommand('scrapeyard.runFunctionOnSelection', async (item: any) => {
+        const functionName = typeof item === 'string' ? item : item?.label;
+        if (functionName) {
+            await functionExecutor.runOnSelection(functionName);
+        } else {
+            vscode.window.showErrorMessage('Could not determine function name');
+        }
+    });
 
-            // Read existing keybindings
-            let existingKeybindings: any[] = [];
+    // Pipeline management commands
+    let createPipelineCommand = vscode.commands.registerCommand('scrapeyard.createPipeline', async () => {
+        await pipelineManager.createPipeline();
+        pipelineTreeProvider.refresh();
+    });
 
-            if (fs.existsSync(keybindingsPath)) {
-                try {
-                    const content = fs.readFileSync(keybindingsPath, 'utf8');
+    let editPipelineCommand = vscode.commands.registerCommand('scrapeyard.editPipeline', async (item: any) => {
+        // Handle both direct string calls and tree item object calls
+        const pipelineName = typeof item === 'string' ? item : item?.pipeline?.name || item?.label;
+        if (pipelineName) {
+            await pipelineManager.editPipeline(pipelineName);
+            pipelineTreeProvider.refresh();
+        } else {
+            vscode.window.showErrorMessage('Could not determine pipeline name');
+        }
+    });
 
-                    if (content.trim()) {
-                        // Try to clean up common JSON issues in VS Code files
-                        let cleanedContent = content.trim();
+    let deletePipelineCommand = vscode.commands.registerCommand('scrapeyard.deletePipeline', async (item: any) => {
+        // Handle both direct string calls and tree item object calls
+        const pipelineName = typeof item === 'string' ? item : item?.pipeline?.name || item?.label;
+        if (pipelineName) {
+            await pipelineManager.deletePipeline(pipelineName);
+            pipelineTreeProvider.refresh();
+        } else {
+            vscode.window.showErrorMessage('Could not determine pipeline name');
+        }
+    });
 
-                        // Remove comments (lines starting with //)
-                        cleanedContent = cleanedContent.replace(/^\s*\/\/.*$/gm, '');
+    let runPipelineOnFileCommand = vscode.commands.registerCommand('scrapeyard.runPipelineOnFile', async (item: any) => {
+        const pipelineName = typeof item === 'string' ? item : item?.pipeline?.name || item?.label;
+        if (pipelineName) {
+            await pipelineManager.runPipelineOnCurrentFile(pipelineName);
+        } else {
+            vscode.window.showErrorMessage('Could not determine pipeline name');
+        }
+    });
 
-                        // Remove trailing commas before } or ]
-                        cleanedContent = cleanedContent.replace(/,(\s*[}\]])/g, '$1');
+    let runPipelineOnSelectionCommand = vscode.commands.registerCommand('scrapeyard.runPipelineOnSelection', async (item: any) => {
+        const pipelineName = typeof item === 'string' ? item : item?.pipeline?.name || item?.label;
+        if (pipelineName) {
+            await pipelineManager.runPipelineOnSelection(pipelineName);
+        } else {
+            vscode.window.showErrorMessage('Could not determine pipeline name');
+        }
+    });
 
-                        // Try parsing the cleaned content
-                        existingKeybindings = JSON.parse(cleanedContent);
+    let movePipelineStepUpCommand = vscode.commands.registerCommand('scrapeyard.movePipelineStepUp', async (item: any) => {
+        // Handle tree item object
+        const pipelineName = item?.pipeline?.name;
+        const stepIndex = item?.index;
 
-                        // Ensure it's an array
-                        if (!Array.isArray(existingKeybindings)) {
-                            existingKeybindings = [];
-                        }
-                    }
-                } catch (parseError) {
-                    // If parsing still fails, show more helpful error and let user choose
-                    const choice = await vscode.window.showErrorMessage(
-                        `Cannot parse existing keybindings.json. The file may have syntax errors.\n\nError: ${parseError}\n\nChoose an option:`,
-                        'Create backup and replace',
-                        'Cancel sync',
-                        'View file'
-                    );
+        if (pipelineName !== undefined && stepIndex !== undefined) {
+            await pipelineManager.movePipelineStepUp(pipelineName, stepIndex);
+            pipelineTreeProvider.refresh();
+        } else {
+            vscode.window.showErrorMessage('Could not determine pipeline step information');
+        }
+    });
 
-                    if (choice === 'Create backup and replace') {
-                        // Create backup of the problematic file
-                        const backupPath = keybindingsPath + '.backup.' + Date.now();
-                        fs.copyFileSync(keybindingsPath, backupPath);
-                        existingKeybindings = [];
-                        vscode.window.showWarningMessage(`Created backup at ${backupPath} and starting with empty keybindings.`);
-                    } else if (choice === 'View file') {
-                        // Open the problematic file for user to fix
-                        const document = await vscode.workspace.openTextDocument(keybindingsPath);
-                        await vscode.window.showTextDocument(document);
-                        return;
-                    } else {
-                        // Cancel
-                        return;
-                    }
-                }
-            } else {
-                console.log('No existing keybindings.json file found, will create new one');
-            }
+    let movePipelineStepDownCommand = vscode.commands.registerCommand('scrapeyard.movePipelineStepDown', async (item: any) => {
+        // Handle tree item object
+        const pipelineName = item?.pipeline?.name;
+        const stepIndex = item?.index;
 
-            // Remove old Scrapeyard keybindings
-            const originalCount = existingKeybindings.length;
-            existingKeybindings = existingKeybindings.filter((binding: any) =>
-                !binding.command || !binding.command.startsWith('fileParser.run.')
+        if (pipelineName !== undefined && stepIndex !== undefined) {
+            await pipelineManager.movePipelineStepDown(pipelineName, stepIndex);
+            pipelineTreeProvider.refresh();
+        } else {
+            vscode.window.showErrorMessage('Could not determine pipeline step information');
+        }
+    });
+
+    let togglePipelineStepCommand = vscode.commands.registerCommand('scrapeyard.togglePipelineStep', async (item: any) => {
+        // Handle tree item object
+        const pipelineName = item?.pipeline?.name;
+        const stepIndex = item?.index;
+
+        if (pipelineName !== undefined && stepIndex !== undefined) {
+            await pipelineManager.togglePipelineStep(pipelineName, stepIndex);
+            pipelineTreeProvider.refresh();
+        } else {
+            vscode.window.showErrorMessage('Could not determine pipeline step information');
+        }
+    });
+
+    let removePipelineStepCommand = vscode.commands.registerCommand('scrapeyard.removePipelineStep', async (item: any) => {
+        // Handle tree item object
+        const pipelineName = item?.pipeline?.name;
+        const stepIndex = item?.index;
+        const stepName = item?.step?.functionName;
+
+        if (pipelineName !== undefined && stepIndex !== undefined) {
+            const confirmation = await vscode.window.showWarningMessage(
+                `Are you sure you want to remove '${stepName}' from pipeline '${pipelineName}'?`,
+                'Yes',
+                'No'
             );
-            const removedCount = originalCount - existingKeybindings.length;
 
-            // Add new Scrapeyard keybindings
-            const mergedKeybindings = [...existingKeybindings, ...newKeybindings];
-
-            // Write back to file
-            fs.writeFileSync(keybindingsPath, JSON.stringify(mergedKeybindings, null, 2), 'utf8');
-
-            console.log(`Removed ${removedCount} old Scrapeyard shortcuts, added ${newKeybindings.length} new ones`);
-            vscode.window.showInformationMessage(`Keyboard shortcuts synced! Removed ${removedCount} old shortcuts, added ${newKeybindings.length} new shortcuts from shortcuts.json to VS Code.`);
-
-        } catch (error) {
-            console.error('Sync error:', error);
-            vscode.window.showErrorMessage(`Failed to sync keyboard shortcuts: ${error}`);
+            if (confirmation === 'Yes') {
+                await pipelineManager.removePipelineStep(pipelineName, stepIndex);
+                pipelineTreeProvider.refresh();
+            }
+        } else {
+            vscode.window.showErrorMessage('Could not determine pipeline step information');
         }
     });
 
-    // Initial registration of dynamic commands
-    registerDynamicCommands();
+    // Keyboard shortcuts commands
+    let configureKeyboardShortcutsCommand = vscode.commands.registerCommand('scrapeyard.configureKeyboardShortcuts', async () => {
+        await functionManager.configureKeyboardShortcuts();
+    });
 
-    // Add all commands to context subscriptions
+    let syncKeyboardShortcutsCommand = vscode.commands.registerCommand('scrapeyard.syncKeyboardShortcuts', async () => {
+        await functionManager.syncKeyboardShortcuts();
+    });
+
+    let editShortcutsCommand = vscode.commands.registerCommand('scrapeyard.editShortcuts', async () => {
+        await functionManager.editShortcuts();
+    });
+
+    // Update shortcuts whenever functions or pipelines change
+    let updateShortcutsCommand = vscode.commands.registerCommand('scrapeyard.updateShortcuts', async () => {
+        const pipelines = pipelineManager.getPipelines();
+        functionManager.updateShortcutsWithPipelines(pipelines);
+        vscode.window.showInformationMessage('Shortcuts updated with current functions and pipelines');
+    });
+
+    // Unified refresh and sync command
+    let refreshAndSyncAllCommand = vscode.commands.registerCommand('scrapeyard.refreshAndSyncAll', async () => {
+        const pipelines = pipelineManager.getPipelines();
+        await functionManager.refreshAndSyncAll(pipelines);
+        functionTreeProvider.refresh();
+        pipelineTreeProvider.refresh();
+    });
+
+    // Register all commands with the context
     context.subscriptions.push(
-        refreshCommand,
-        createTypeScriptFunctionCommand,
+        createFunctionCommand,
         editFunctionCommand,
         deleteFunctionCommand,
-        runOnFileCommand,
-        runOnSelectionCommand,
-        setNodeModulesPathCommand,
+        refreshFunctionsCommand,
+        runFunctionOnFileCommand,
+        runFunctionOnSelectionCommand,
+        createPipelineCommand,
+        editPipelineCommand,
+        deletePipelineCommand,
+        runPipelineOnFileCommand,
+        runPipelineOnSelectionCommand,
+        movePipelineStepUpCommand,
+        movePipelineStepDownCommand,
+        togglePipelineStepCommand,
+        removePipelineStepCommand,
         configureKeyboardShortcutsCommand,
         syncKeyboardShortcutsCommand,
-        contextMenuCommand
+        editShortcutsCommand,
+        updateShortcutsCommand,
+        refreshAndSyncAllCommand
     );
+
+    // Dynamic command registration for existing functions
+    const functions = functionManager.getFunctions();
+    for (const func of functions) {
+        const onFileCommand = vscode.commands.registerCommand(`fileParser.run.${func.name}.onFile`, async () => {
+            await functionExecutor.runOnCurrentFile(func.name);
+        });
+
+        const onSelectionCommand = vscode.commands.registerCommand(`fileParser.run.${func.name}.onSelection`, async () => {
+            await functionExecutor.runOnSelection(func.name);
+        });
+
+        context.subscriptions.push(onFileCommand, onSelectionCommand);
+    }
+
+    // Dynamic command registration for existing pipelines
+    const pipelines = pipelineManager.getPipelines();
+    for (const pipeline of pipelines) {
+        const onFileCommand = vscode.commands.registerCommand(`pipeline.run.${pipeline.name}.onFile`, async () => {
+            await pipelineManager.runPipelineOnCurrentFile(pipeline.name);
+        });
+
+        const onSelectionCommand = vscode.commands.registerCommand(`pipeline.run.${pipeline.name}.onSelection`, async () => {
+            await pipelineManager.runPipelineOnSelection(pipeline.name);
+        });
+
+        context.subscriptions.push(onFileCommand, onSelectionCommand);
+    }
 }
 
 export function deactivate() {

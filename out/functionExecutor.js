@@ -136,7 +136,22 @@ class FunctionExecutor {
                 params: {},
                 vscode: vscode // Pass the VS Code API
             };
-            const result = await userFunction(input, context);
+            const functionResult = await userFunction(input, context);
+            // Handle both old and new return formats for backward compatibility
+            let result;
+            let updatedContext = context;
+            if (typeof functionResult === 'string') {
+                // Old format: function returns string directly
+                result = functionResult;
+            }
+            else if (functionResult && typeof functionResult === 'object' && 'result' in functionResult) {
+                // New format: function returns {result, ctx}
+                result = functionResult.result;
+                updatedContext = functionResult.ctx || context;
+            }
+            else {
+                throw new Error('Function must return either a string or an object with {result, ctx} properties');
+            }
             if (replaceInPlace && editor && selection) {
                 // Replace the selected text in place
                 const edit = new vscode.WorkspaceEdit();

@@ -54,7 +54,7 @@ class FunctionItem extends vscode.TreeItem {
         this.description = description;
         this.functionType = functionType;
         this.tooltip = `${this.label} (TypeScript): ${this.description}`;
-        this.contextValue = 'parserFunction';
+        this.contextValue = 'function';
         // Use TypeScript icon
         this.iconPath = new vscode.ThemeIcon('symbol-class', new vscode.ThemeColor('charts.blue'));
     }
