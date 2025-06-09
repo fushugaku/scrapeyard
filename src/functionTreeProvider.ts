@@ -5,7 +5,7 @@ export class FunctionTreeDataProvider implements vscode.TreeDataProvider<Functio
     private _onDidChangeTreeData: vscode.EventEmitter<FunctionItem | undefined | null | void> = new vscode.EventEmitter<FunctionItem | undefined | null | void>();
     readonly onDidChangeTreeData: vscode.Event<FunctionItem | undefined | null | void> = this._onDidChangeTreeData.event;
 
-    constructor(private functionManager: FunctionManager) {}
+    constructor(private functionManager: FunctionManager) { }
 
     refresh(): void {
         this._onDidChangeTreeData.fire();
@@ -29,17 +29,13 @@ class FunctionItem extends vscode.TreeItem {
     constructor(
         public readonly label: string,
         public readonly description: string,
-        public readonly functionType: 'javascript' | 'typescript'
+        public readonly functionType: 'typescript'
     ) {
         super(label, vscode.TreeItemCollapsibleState.None);
-        this.tooltip = `${this.label} (${this.functionType.toUpperCase()}): ${this.description}`;
+        this.tooltip = `${this.label} (TypeScript): ${this.description}`;
         this.contextValue = 'parserFunction';
-        
-        // Use different icons for JavaScript and TypeScript
-        if (this.functionType === 'typescript') {
-            this.iconPath = new vscode.ThemeIcon('symbol-class', new vscode.ThemeColor('charts.blue'));
-        } else {
-            this.iconPath = new vscode.ThemeIcon('symbol-function', new vscode.ThemeColor('charts.yellow'));
-        }
+
+        // Use TypeScript icon
+        this.iconPath = new vscode.ThemeIcon('symbol-class', new vscode.ThemeColor('charts.blue'));
     }
 } 

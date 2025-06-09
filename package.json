@@ -1,12 +1,13 @@
 {
   "name": "scrapeyard",
   "displayName": "Scrapeyard",
-  "description": "Parse and transform files using custom JavaScript and TypeScript functions",
+  "description": "Parse and transform files using custom TypeScript functions",
   "publisher": "henry-dorsett-case",
-  "version": "0.0.1",
+  "version": "0.1.1",
   "engines": {
     "vscode": "^1.74.0"
   },
+  "icon": "icon.png",
   "categories": [
     "Other"
   ],
@@ -35,13 +36,8 @@
         "icon": "$(refresh)"
       },
       {
-        "command": "fileParser.createFunction",
-        "title": "Create Function",
-        "icon": "$(add)"
-      },
-      {
         "command": "fileParser.createTypeScriptFunction",
-        "title": "Create TypeScript Function",
+        "title": "Create Function",
         "icon": "$(add)"
       },
       {
@@ -67,6 +63,14 @@
         "title": "Set Node Modules Path"
       },
       {
+        "command": "fileParser.configureKeyboardShortcuts",
+        "title": "Configure Keyboard Shortcuts"
+      },
+      {
+        "command": "fileParser.syncKeyboardShortcuts",
+        "title": "Sync Keyboard Shortcuts"
+      },
+      {
         "command": "fileParser.showContextMenu",
         "title": "Apply Functions..."
       }
@@ -79,14 +83,19 @@
           "group": "navigation"
         },
         {
-          "command": "fileParser.createFunction",
+          "command": "fileParser.createTypeScriptFunction",
           "when": "view == fileParserFunctions",
           "group": "navigation"
         },
         {
-          "command": "fileParser.createTypeScriptFunction",
+          "command": "fileParser.configureKeyboardShortcuts",
           "when": "view == fileParserFunctions",
-          "group": "navigation"
+          "group": "navigation@2"
+        },
+        {
+          "command": "fileParser.syncKeyboardShortcuts",
+          "when": "view == fileParserFunctions",
+          "group": "navigation@2"
         }
       ],
       "view/item/context": [
@@ -139,7 +148,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "package": "vsce package",
-    "pin": "npm run package && cursor --install-extension scrapeyard-0.0.1.vsix"
+    "pin": "vsce package && code --install-extension $(ls -t *.vsix | head -n1) --force"
   },
   "devDependencies": {
     "@types/vscode": "^1.74.0",

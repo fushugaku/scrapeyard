@@ -53,15 +53,10 @@ class FunctionItem extends vscode.TreeItem {
         this.label = label;
         this.description = description;
         this.functionType = functionType;
-        this.tooltip = `${this.label} (${this.functionType.toUpperCase()}): ${this.description}`;
+        this.tooltip = `${this.label} (TypeScript): ${this.description}`;
         this.contextValue = 'parserFunction';
-        // Use different icons for JavaScript and TypeScript
-        if (this.functionType === 'typescript') {
-            this.iconPath = new vscode.ThemeIcon('symbol-class', new vscode.ThemeColor('charts.blue'));
-        }
-        else {
-            this.iconPath = new vscode.ThemeIcon('symbol-function', new vscode.ThemeColor('charts.yellow'));
-        }
+        // Use TypeScript icon
+        this.iconPath = new vscode.ThemeIcon('symbol-class', new vscode.ThemeColor('charts.blue'));
     }
 }
 //# sourceMappingURL=functionTreeProvider.js.map

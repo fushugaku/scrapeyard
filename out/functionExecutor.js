@@ -60,10 +60,8 @@ class FunctionExecutor {
         }
         try {
             let executablePath = func.filePath;
-            // If it's a TypeScript function, compile it first
-            if (func.type === 'typescript') {
-                executablePath = await this.functionManager.compileTypeScriptFunction(func.filePath);
-            }
+            // Compile TypeScript function
+            executablePath = await this.functionManager.compileTypeScriptFunction(func.filePath);
             // Clear require cache to get fresh function
             delete require.cache[executablePath];
             // Get node_modules path from configuration
@@ -88,48 +86,63 @@ class FunctionExecutor {
             }
             // Load and execute the function
             const moduleExport = require(executablePath);
-            // Handle different export patterns
+            // Handle TypeScript export patterns
             let userFunction;
-            if (func.type === 'typescript') {
-                // For TypeScript with export default, the function is in default property
-                if (moduleExport.default && typeof moduleExport.default === 'function') {
-                    userFunction = moduleExport.default;
-                }
-                else if (typeof moduleExport === 'function') {
-                    userFunction = moduleExport;
-                }
-                else {
-                    throw new Error(`TypeScript function should export a default function. Got: ${typeof moduleExport}`);
-                }
+            // For TypeScript with export default, the function is in default property
+            if (moduleExport.default && typeof moduleExport.default === 'function') {
+                userFunction = moduleExport.default;
+            }
+            else if (typeof moduleExport === 'function') {
+                userFunction = moduleExport;
             }
             else {
-                // For JavaScript functions
-                if (typeof moduleExport === 'function') {
-                    // Direct function export (module.exports = functionName)
-                    userFunction = moduleExport;
-                }
-                else if (moduleExport[functionName] && typeof moduleExport[functionName] === 'function') {
-                    // Named export
-                    userFunction = moduleExport[functionName];
+                throw new Error(`TypeScript function should export a default function. Got: ${typeof moduleExport}`);
+            }
+            // Prepare context information
+            const activeEditor = vscode.window.activeTextEditor;
+            const filePath = activeEditor?.document.uri.fsPath || '';
+            let contextSelection = {
+                startLine: 0,
+                endLine: 0,
+                startChar: 0,
+                endChar: 0
+            };
+            if (activeEditor) {
+                if (selection && !selection.isEmpty) {
+                    // Use the provided selection
+                    contextSelection = {
+                        startLine: selection.start.line,
+                        endLine: selection.end.line,
+                        startChar: selection.start.character,
+                        endChar: selection.end.character
+                    };
                 }
                 else {
-                    // Try to find any function in the module
-                    const exportedFunction = Object.values(moduleExport).find(val => typeof val === 'function');
-                    if (exportedFunction) {
-                        userFunction = exportedFunction;
-                    }
-                    else {
-                        throw new Error(`No valid function found in module. Expected a function but got: ${typeof moduleExport}`);
-                    }
+                    // Entire file
+                    const document = activeEditor.document;
+                    const lastLine = document.lineCount - 1;
+                    const lastLineText = document.lineAt(lastLine).text;
+                    contextSelection = {
+                        startLine: 0,
+                        endLine: lastLine,
+                        startChar: 0,
+                        endChar: lastLineText.length
+                    };
                 }
             }
-            const result = await userFunction(input);
+            const context = {
+                fullPath: filePath,
+                selection: contextSelection,
+                params: {},
+                vscode: vscode // Pass the VS Code API
+            };
+            const result = await userFunction(input, context);
             if (replaceInPlace && editor && selection) {
                 // Replace the selected text in place
                 const edit = new vscode.WorkspaceEdit();
                 edit.replace(editor.document.uri, selection, result);
                 await vscode.workspace.applyEdit(edit);
-                vscode.window.showInformationMessage(`${func.type === 'typescript' ? 'TypeScript' : 'JavaScript'} function '${functionName}' applied to selection!`);
+                vscode.window.showInformationMessage(`TypeScript function '${functionName}' applied to selection!`);
             }
             else {
                 // Create virtual document with the result
@@ -139,7 +152,7 @@ class FunctionExecutor {
                 edit.insert(uri, new vscode.Position(0, 0), result);
                 await vscode.workspace.applyEdit(edit);
                 await vscode.window.showTextDocument(document);
-                vscode.window.showInformationMessage(`${func.type === 'typescript' ? 'TypeScript' : 'JavaScript'} function '${functionName}' executed successfully!`);
+                vscode.window.showInformationMessage(`TypeScript function '${functionName}' executed successfully!`);
             }
         }
         catch (error) {

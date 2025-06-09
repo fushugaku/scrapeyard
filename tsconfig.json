@@ -14,9 +14,13 @@
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
     "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
     "types": [
       "vscode",
       "node"
+    ],
+    "typeRoots": [
+      "./node_modules/@types"
     ]
   },
   "exclude": [
