@@ -125,6 +125,14 @@
         "command": "scrapeyard.editShortcuts",
         "title": "Edit Shortcuts",
         "icon": "$(keyboard)"
+      },
+      {
+        "command": "scrapeyard.runFunctionOnSelectionPicker",
+        "title": "Run Function on Selection..."
+      },
+      {
+        "command": "scrapeyard.runPipelineOnSelectionPicker",
+        "title": "Run Pipeline on Selection..."
       }
     ],
     "menus": {
@@ -211,6 +219,18 @@
           "command": "scrapeyard.removePipelineStep",
           "when": "view == scrapeyardPipelines && viewItem == pipelineStep",
           "group": "inline"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "scrapeyard.runFunctionOnSelectionPicker",
+          "when": "editorHasSelection",
+          "group": "scrapeyard@1"
+        },
+        {
+          "command": "scrapeyard.runPipelineOnSelectionPicker",
+          "when": "editorHasSelection",
+          "group": "scrapeyard@2"
         }
       ]
     },

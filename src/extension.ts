@@ -5,7 +5,10 @@ import { FunctionExecutor } from './functionExecutor';
 import { PipelineManager } from './pipelineManager';
 import { PipelineTreeProvider } from './pipelineTreeProvider';
 
-let dynamicCommands: vscode.Disposable[] = [];
+// Dynamic commands tracking
+const dynamicCommands: vscode.Disposable[] = [];
+
+
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('File Parser Extension is now active!');
@@ -215,6 +218,52 @@ export function activate(context: vscode.ExtensionContext) {
         await functionManager.editShortcuts();
     });
 
+    // Context menu picker commands
+    let runFunctionOnSelectionPickerCommand = vscode.commands.registerCommand('scrapeyard.runFunctionOnSelectionPicker', async () => {
+        const functions = functionManager.getFunctions();
+
+        if (functions.length === 0) {
+            vscode.window.showInformationMessage('No functions available. Create some functions first!');
+            return;
+        }
+
+        const functionItems = functions.map(func => ({
+            label: func.name,
+            description: func.description || 'No description'
+        }));
+
+        const selectedFunction = await vscode.window.showQuickPick(functionItems, {
+            placeHolder: 'Select a function to run on the selected text'
+        });
+
+        if (selectedFunction) {
+            await functionExecutor.runOnSelection(selectedFunction.label);
+        }
+    });
+
+    let runPipelineOnSelectionPickerCommand = vscode.commands.registerCommand('scrapeyard.runPipelineOnSelectionPicker', async () => {
+        const pipelines = pipelineManager.getPipelines();
+
+        if (pipelines.length === 0) {
+            vscode.window.showInformationMessage('No pipelines available. Create some pipelines first!');
+            return;
+        }
+
+        const pipelineItems = pipelines.map(pipeline => ({
+            label: pipeline.name,
+            description: pipeline.description || 'No description',
+            detail: `${pipeline.steps.length} step(s)`
+        }));
+
+        const selectedPipeline = await vscode.window.showQuickPick(pipelineItems, {
+            placeHolder: 'Select a pipeline to run on the selected text'
+        });
+
+        if (selectedPipeline) {
+            await pipelineManager.runPipelineOnSelection(selectedPipeline.label);
+        }
+    });
+
     // Update shortcuts whenever functions or pipelines change
     let updateShortcutsCommand = vscode.commands.registerCommand('scrapeyard.updateShortcuts', async () => {
         const pipelines = pipelineManager.getPipelines();
@@ -251,7 +300,9 @@ export function activate(context: vscode.ExtensionContext) {
         syncKeyboardShortcutsCommand,
         editShortcutsCommand,
         updateShortcutsCommand,
-        refreshAndSyncAllCommand
+        refreshAndSyncAllCommand,
+        runFunctionOnSelectionPickerCommand,
+        runPipelineOnSelectionPickerCommand
     );
 
     // Dynamic command registration for existing functions

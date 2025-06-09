@@ -30,7 +30,8 @@ const functionManager_1 = require("./functionManager");
 const functionExecutor_1 = require("./functionExecutor");
 const pipelineManager_1 = require("./pipelineManager");
 const pipelineTreeProvider_1 = require("./pipelineTreeProvider");
-let dynamicCommands = [];
+// Dynamic commands tracking
+const dynamicCommands = [];
 function activate(context) {
     console.log('File Parser Extension is now active!');
     const functionManager = new functionManager_1.FunctionManager(context);
@@ -214,6 +215,42 @@ function activate(context) {
     let editShortcutsCommand = vscode.commands.registerCommand('scrapeyard.editShortcuts', async () => {
         await functionManager.editShortcuts();
     });
+    // Context menu picker commands
+    let runFunctionOnSelectionPickerCommand = vscode.commands.registerCommand('scrapeyard.runFunctionOnSelectionPicker', async () => {
+        const functions = functionManager.getFunctions();
+        if (functions.length === 0) {
+            vscode.window.showInformationMessage('No functions available. Create some functions first!');
+            return;
+        }
+        const functionItems = functions.map(func => ({
+            label: func.name,
+            description: func.description || 'No description'
+        }));
+        const selectedFunction = await vscode.window.showQuickPick(functionItems, {
+            placeHolder: 'Select a function to run on the selected text'
+        });
+        if (selectedFunction) {
+            await functionExecutor.runOnSelection(selectedFunction.label);
+        }
+    });
+    let runPipelineOnSelectionPickerCommand = vscode.commands.registerCommand('scrapeyard.runPipelineOnSelectionPicker', async () => {
+        const pipelines = pipelineManager.getPipelines();
+        if (pipelines.length === 0) {
+            vscode.window.showInformationMessage('No pipelines available. Create some pipelines first!');
+            return;
+        }
+        const pipelineItems = pipelines.map(pipeline => ({
+            label: pipeline.name,
+            description: pipeline.description || 'No description',
+            detail: `${pipeline.steps.length} step(s)`
+        }));
+        const selectedPipeline = await vscode.window.showQuickPick(pipelineItems, {
+            placeHolder: 'Select a pipeline to run on the selected text'
+        });
+        if (selectedPipeline) {
+            await pipelineManager.runPipelineOnSelection(selectedPipeline.label);
+        }
+    });
     // Update shortcuts whenever functions or pipelines change
     let updateShortcutsCommand = vscode.commands.registerCommand('scrapeyard.updateShortcuts', async () => {
         const pipelines = pipelineManager.getPipelines();
@@ -228,7 +265,7 @@ function activate(context) {
         pipelineTreeProvider.refresh();
     });
     // Register all commands with the context
-    context.subscriptions.push(createFunctionCommand, editFunctionCommand, deleteFunctionCommand, refreshFunctionsCommand, runFunctionOnFileCommand, runFunctionOnSelectionCommand, createPipelineCommand, editPipelineCommand, deletePipelineCommand, runPipelineOnFileCommand, runPipelineOnSelectionCommand, movePipelineStepUpCommand, movePipelineStepDownCommand, togglePipelineStepCommand, removePipelineStepCommand, configureKeyboardShortcutsCommand, syncKeyboardShortcutsCommand, editShortcutsCommand, updateShortcutsCommand, refreshAndSyncAllCommand);
+    context.subscriptions.push(createFunctionCommand, editFunctionCommand, deleteFunctionCommand, refreshFunctionsCommand, runFunctionOnFileCommand, runFunctionOnSelectionCommand, createPipelineCommand, editPipelineCommand, deletePipelineCommand, runPipelineOnFileCommand, runPipelineOnSelectionCommand, movePipelineStepUpCommand, movePipelineStepDownCommand, togglePipelineStepCommand, removePipelineStepCommand, configureKeyboardShortcutsCommand, syncKeyboardShortcutsCommand, editShortcutsCommand, updateShortcutsCommand, refreshAndSyncAllCommand, runFunctionOnSelectionPickerCommand, runPipelineOnSelectionPickerCommand);
     // Dynamic command registration for existing functions
     const functions = functionManager.getFunctions();
     for (const func of functions) {
