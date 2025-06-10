@@ -7,7 +7,7 @@ export interface ParserFunction {
     description?: string;
     filePath: string;
     content: string;
-    type: 'typescript';
+    type: 'typescript' | 'declaration';
 }
 
 export class FunctionManager {
@@ -113,19 +113,20 @@ export {};`;
             const files = fs.readdirSync(this.functionsDir);
             this.functions = files
                 .filter((file: string) =>
-                    file.endsWith('.ts') &&
-                    !file.endsWith('.d.ts') && // Exclude TypeScript declaration files
+                    (file.endsWith('.ts') || file.endsWith('.d.ts')) &&
                     !file.endsWith('.compiled.js') // Exclude compiled TypeScript files
                 )
                 .map((file: string) => {
                     const filePath = path.join(this.functionsDir, file);
                     const content = fs.readFileSync(filePath, 'utf8');
                     const name = path.basename(file, path.extname(file));
+                    const isDeclaration = file.endsWith('.d.ts');
+
                     return {
                         name,
                         filePath,
                         content,
-                        type: 'typescript' as const,
+                        type: isDeclaration ? 'declaration' as const : 'typescript' as const,
                         description: this.extractDescription(content)
                     };
                 });
@@ -289,8 +290,9 @@ export default (input: string, ctx: Context): { result: string; ctx: Context } =
             const shortcutsPath = path.join(this.functionsDir, 'shortcuts.json');
             const shortcuts: any[] = [];
 
-            // Add shortcuts for functions
-            this.functions.forEach(func => {
+            // Add shortcuts for executable functions only
+            const executableFunctions = this.functions.filter(func => func.type === 'typescript');
+            executableFunctions.forEach(func => {
                 shortcuts.push(
                     {
                         "key": "",
@@ -494,8 +496,9 @@ export default (input: string, ctx: Context): { result: string; ctx: Context } =
 
             const updatedShortcuts = [...customShortcuts];
 
-            // Add shortcuts for current functions (preserving existing keys)
-            this.functions.forEach(func => {
+            // Add shortcuts for current executable functions (preserving existing keys)
+            const executableFunctions = this.functions.filter(func => func.type === 'typescript');
+            executableFunctions.forEach(func => {
                 const onFileCommand = `fileParser.run.${func.name}.onFile`;
                 const onSelectionCommand = `fileParser.run.${func.name}.onSelection`;
 

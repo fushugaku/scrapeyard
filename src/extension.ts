@@ -220,14 +220,15 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Context menu picker commands
     let runFunctionOnSelectionPickerCommand = vscode.commands.registerCommand('scrapeyard.runFunctionOnSelectionPicker', async () => {
-        const functions = functionManager.getFunctions();
+        const allFunctions = functionManager.getFunctions();
+        const executableFunctions = allFunctions.filter(func => func.type === 'typescript');
 
-        if (functions.length === 0) {
-            vscode.window.showInformationMessage('No functions available. Create some functions first!');
+        if (executableFunctions.length === 0) {
+            vscode.window.showInformationMessage('No executable functions available. Create some TypeScript functions first!');
             return;
         }
 
-        const functionItems = functions.map(func => ({
+        const functionItems = executableFunctions.map(func => ({
             label: func.name,
             description: func.description || 'No description'
         }));
@@ -307,7 +308,8 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Dynamic command registration for existing functions
     const functions = functionManager.getFunctions();
-    for (const func of functions) {
+    const executableFunctions = functions.filter(func => func.type === 'typescript');
+    for (const func of executableFunctions) {
         const onFileCommand = vscode.commands.registerCommand(`fileParser.run.${func.name}.onFile`, async () => {
             await functionExecutor.runOnCurrentFile(func.name);
         });

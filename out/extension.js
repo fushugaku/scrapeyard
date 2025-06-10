@@ -217,12 +217,13 @@ function activate(context) {
     });
     // Context menu picker commands
     let runFunctionOnSelectionPickerCommand = vscode.commands.registerCommand('scrapeyard.runFunctionOnSelectionPicker', async () => {
-        const functions = functionManager.getFunctions();
-        if (functions.length === 0) {
-            vscode.window.showInformationMessage('No functions available. Create some functions first!');
+        const allFunctions = functionManager.getFunctions();
+        const executableFunctions = allFunctions.filter(func => func.type === 'typescript');
+        if (executableFunctions.length === 0) {
+            vscode.window.showInformationMessage('No executable functions available. Create some TypeScript functions first!');
             return;
         }
-        const functionItems = functions.map(func => ({
+        const functionItems = executableFunctions.map(func => ({
             label: func.name,
             description: func.description || 'No description'
         }));
@@ -268,7 +269,8 @@ function activate(context) {
     context.subscriptions.push(createFunctionCommand, editFunctionCommand, deleteFunctionCommand, refreshFunctionsCommand, runFunctionOnFileCommand, runFunctionOnSelectionCommand, createPipelineCommand, editPipelineCommand, deletePipelineCommand, runPipelineOnFileCommand, runPipelineOnSelectionCommand, movePipelineStepUpCommand, movePipelineStepDownCommand, togglePipelineStepCommand, removePipelineStepCommand, configureKeyboardShortcutsCommand, syncKeyboardShortcutsCommand, editShortcutsCommand, updateShortcutsCommand, refreshAndSyncAllCommand, runFunctionOnSelectionPickerCommand, runPipelineOnSelectionPickerCommand);
     // Dynamic command registration for existing functions
     const functions = functionManager.getFunctions();
-    for (const func of functions) {
+    const executableFunctions = functions.filter(func => func.type === 'typescript');
+    for (const func of executableFunctions) {
         const onFileCommand = vscode.commands.registerCommand(`fileParser.run.${func.name}.onFile`, async () => {
             await functionExecutor.runOnCurrentFile(func.name);
         });
