@@ -25,6 +25,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deactivate = exports.activate = void 0;
 const vscode = __importStar(require("vscode"));
+const path = __importStar(require("path"));
 const functionTreeProvider_1 = require("./functionTreeProvider");
 const functionManager_1 = require("./functionManager");
 const functionExecutor_1 = require("./functionExecutor");
@@ -41,7 +42,8 @@ function activate(context) {
     const pipelineTreeProvider = new pipelineTreeProvider_1.PipelineTreeProvider(pipelineManager);
     // Register tree views
     vscode.window.createTreeView('scrapeyardFunctions', {
-        treeDataProvider: functionTreeProvider
+        treeDataProvider: functionTreeProvider,
+        dragAndDropController: functionTreeProvider
     });
     vscode.window.createTreeView('scrapeyardPipelines', {
         treeDataProvider: pipelineTreeProvider
@@ -51,6 +53,39 @@ function activate(context) {
         await functionManager.createFunction();
         functionTreeProvider.refresh();
         pipelineTreeProvider.refresh(); // Refresh pipelines in case they reference functions
+    });
+    let createFolderCommand = vscode.commands.registerCommand('scrapeyard.createFolder', async () => {
+        await functionManager.createFolder();
+        functionTreeProvider.refresh();
+    });
+    let deleteFolderCommand = vscode.commands.registerCommand('scrapeyard.deleteFolder', async (item) => {
+        // Handle both direct string calls and tree item object calls
+        const folderPath = typeof item === 'string' ? item : item?.directoryNode?.path;
+        if (folderPath !== undefined) {
+            // Get functions that will be deleted for pipeline cleanup
+            const functionsToDelete = functionManager.getFunctions().filter(func => func.relativePath.startsWith(folderPath + path.sep) ||
+                path.dirname(func.relativePath) === folderPath);
+            // Remove deleted functions from all pipelines
+            let totalRemovedSteps = 0;
+            const affectedPipelines = [];
+            for (const func of functionsToDelete) {
+                const cleanup = pipelineManager.removeFunctionFromAllPipelines(func.name);
+                totalRemovedSteps += cleanup.totalRemoved;
+                affectedPipelines.push(...cleanup.affectedPipelines);
+            }
+            await functionManager.deleteFolder(folderPath);
+            functionTreeProvider.refresh();
+            pipelineTreeProvider.refresh();
+            // Show pipeline cleanup information if any pipelines were affected
+            if (totalRemovedSteps > 0) {
+                const uniquePipelines = [...new Set(affectedPipelines)];
+                const pipelineList = uniquePipelines.join(', ');
+                vscode.window.showInformationMessage(`Removed ${totalRemovedSteps} step(s) from pipeline(s): ${pipelineList}`);
+            }
+        }
+        else {
+            vscode.window.showErrorMessage('Could not determine folder path');
+        }
     });
     let editFunctionCommand = vscode.commands.registerCommand('scrapeyard.editFunction', async (item) => {
         // Handle both direct string calls and tree item object calls
@@ -276,7 +311,7 @@ function activate(context) {
         vscode.window.showInformationMessage(`Terminal opened in functions directory: ${functionsDirectory}`);
     });
     // Register all commands with the context
-    context.subscriptions.push(createFunctionCommand, editFunctionCommand, deleteFunctionCommand, refreshFunctionsCommand, runFunctionOnFileCommand, runFunctionOnSelectionCommand, createPipelineCommand, editPipelineCommand, deletePipelineCommand, runPipelineOnFileCommand, runPipelineOnSelectionCommand, movePipelineStepUpCommand, movePipelineStepDownCommand, togglePipelineStepCommand, removePipelineStepCommand, configureKeyboardShortcutsCommand, syncKeyboardShortcutsCommand, editShortcutsCommand, updateShortcutsCommand, refreshAndSyncAllCommand, runFunctionOnSelectionPickerCommand, runPipelineOnSelectionPickerCommand, openTerminalWithContentsCommand);
+    context.subscriptions.push(createFunctionCommand, createFolderCommand, deleteFolderCommand, editFunctionCommand, deleteFunctionCommand, refreshFunctionsCommand, runFunctionOnFileCommand, runFunctionOnSelectionCommand, createPipelineCommand, editPipelineCommand, deletePipelineCommand, runPipelineOnFileCommand, runPipelineOnSelectionCommand, movePipelineStepUpCommand, movePipelineStepDownCommand, togglePipelineStepCommand, removePipelineStepCommand, configureKeyboardShortcutsCommand, syncKeyboardShortcutsCommand, editShortcutsCommand, updateShortcutsCommand, refreshAndSyncAllCommand, runFunctionOnSelectionPickerCommand, runPipelineOnSelectionPickerCommand, openTerminalWithContentsCommand);
     // Dynamic command registration for existing functions
     const functions = functionManager.getFunctions();
     const executableFunctions = functions.filter(func => func.type === 'typescript');

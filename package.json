@@ -46,6 +46,16 @@
         "icon": "$(add)"
       },
       {
+        "command": "scrapeyard.createFolder",
+        "title": "Create Folder",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "scrapeyard.deleteFolder",
+        "title": "Delete Folder",
+        "icon": "$(trash)"
+      },
+      {
         "command": "scrapeyard.editFunction",
         "title": "Edit Function",
         "icon": "$(edit)"
@@ -153,6 +163,11 @@
           "group": "navigation"
         },
         {
+          "command": "scrapeyard.createFolder",
+          "when": "view == scrapeyardFunctions",
+          "group": "navigation"
+        },
+        {
           "command": "scrapeyard.refreshAndSyncAll",
           "when": "view == scrapeyardFunctions",
           "group": "navigation@2"
@@ -238,6 +253,11 @@
         {
           "command": "scrapeyard.deleteFunction",
           "when": "view == scrapeyardFunctions && viewItem == declarationFile",
+          "group": "inline"
+        },
+        {
+          "command": "scrapeyard.deleteFolder",
+          "when": "view == scrapeyardFunctions && viewItem == folder",
           "group": "inline"
         }
       ],

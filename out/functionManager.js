@@ -120,29 +120,53 @@ export {};`;
     }
     loadFunctions() {
         try {
-            const files = fs.readdirSync(this.functionsDir);
-            this.functions = files
-                .filter((file) => (file.endsWith('.ts') || file.endsWith('.d.ts')) &&
-                !file.endsWith('.compiled.js') // Exclude compiled TypeScript files
-            )
-                .map((file) => {
-                const filePath = path.join(this.functionsDir, file);
-                const content = fs.readFileSync(filePath, 'utf8');
-                const name = path.basename(file, path.extname(file));
-                const isDeclaration = file.endsWith('.d.ts');
-                return {
-                    name,
-                    filePath,
-                    content,
-                    type: isDeclaration ? 'declaration' : 'typescript',
-                    description: this.extractDescription(content)
-                };
-            });
+            this.functions = this.scanDirectory(this.functionsDir, '');
         }
         catch (error) {
             console.error('Error loading functions:', error);
             this.functions = [];
         }
+    }
+    scanDirectory(dirPath, relativePath) {
+        const functions = [];
+        try {
+            const items = fs.readdirSync(dirPath, { withFileTypes: true });
+            for (const item of items) {
+                // Skip hidden files and directories, node_modules, and other build artifacts
+                if (item.name.startsWith('.') ||
+                    item.name === 'node_modules' ||
+                    item.name === 'out' ||
+                    item.name === 'dist' ||
+                    item.name.endsWith('.compiled.js')) {
+                    continue;
+                }
+                const fullPath = path.join(dirPath, item.name);
+                const itemRelativePath = relativePath ? path.join(relativePath, item.name) : item.name;
+                if (item.isDirectory()) {
+                    // Recursively scan subdirectories
+                    functions.push(...this.scanDirectory(fullPath, itemRelativePath));
+                }
+                else if (item.isFile() &&
+                    (item.name.endsWith('.ts') || item.name.endsWith('.d.ts')) &&
+                    !item.name.endsWith('.compiled.js')) {
+                    const content = fs.readFileSync(fullPath, 'utf8');
+                    const name = path.basename(item.name, path.extname(item.name));
+                    const isDeclaration = item.name.endsWith('.d.ts');
+                    functions.push({
+                        name,
+                        filePath: fullPath,
+                        relativePath: itemRelativePath,
+                        content,
+                        type: isDeclaration ? 'declaration' : 'typescript',
+                        description: this.extractDescription(content)
+                    });
+                }
+            }
+        }
+        catch (error) {
+            console.error(`Error scanning directory ${dirPath}:`, error);
+        }
+        return functions;
     }
     extractDescription(content) {
         const match = content.match(/\/\*\*\s*\n\s*\*\s*(.+)\s*\n/);
@@ -154,10 +178,85 @@ export {};`;
     getFunctionsDirectory() {
         return this.functionsDir;
     }
+    getDirectoryStructure() {
+        const root = {
+            name: '',
+            path: '',
+            isDirectory: true,
+            children: new Map(),
+            functions: []
+        };
+        // First, scan for all directories (including empty ones)
+        this.scanDirectoryStructure(this.functionsDir, '', root);
+        // Then, add functions to their respective directories
+        for (const func of this.functions) {
+            const parts = func.relativePath.split(path.sep);
+            let current = root;
+            // Navigate to the directory containing this function
+            for (let i = 0; i < parts.length - 1; i++) {
+                const dirName = parts[i];
+                current = current.children.get(dirName);
+            }
+            // Add function to the current directory
+            current.functions.push(func);
+        }
+        return root;
+    }
+    scanDirectoryStructure(dirPath, relativePath, parentNode) {
+        try {
+            const items = fs.readdirSync(dirPath, { withFileTypes: true });
+            for (const item of items) {
+                // Skip hidden files and directories, node_modules, and other build artifacts
+                if (item.name.startsWith('.') ||
+                    item.name === 'node_modules' ||
+                    item.name === 'out' ||
+                    item.name === 'dist') {
+                    continue;
+                }
+                if (item.isDirectory()) {
+                    const itemRelativePath = relativePath ? path.join(relativePath, item.name) : item.name;
+                    const dirNode = {
+                        name: item.name,
+                        path: itemRelativePath,
+                        isDirectory: true,
+                        children: new Map(),
+                        functions: []
+                    };
+                    parentNode.children.set(item.name, dirNode);
+                    // Recursively scan subdirectories
+                    this.scanDirectoryStructure(path.join(dirPath, item.name), itemRelativePath, dirNode);
+                }
+            }
+        }
+        catch (error) {
+            console.error(`Error scanning directory structure ${dirPath}:`, error);
+        }
+    }
+    async createFolder() {
+        const folderName = await vscode.window.showInputBox({
+            prompt: 'Enter folder name (can include nested path like "utils/helpers")',
+            placeHolder: 'folderName or parent/folderName'
+        });
+        if (!folderName) {
+            return;
+        }
+        const folderPath = path.join(this.functionsDir, folderName);
+        try {
+            if (fs.existsSync(folderPath)) {
+                vscode.window.showErrorMessage(`Folder '${folderName}' already exists`);
+                return;
+            }
+            fs.mkdirSync(folderPath, { recursive: true });
+            vscode.window.showInformationMessage(`Folder '${folderName}' created successfully!`);
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Error creating folder: ${error}`);
+        }
+    }
     async createFunction(type = 'typescript') {
         const name = await vscode.window.showInputBox({
-            prompt: 'Enter function name',
-            placeHolder: 'myParserFunction'
+            prompt: 'Enter function name (can include folder path like "utils/myFunction")',
+            placeHolder: 'myParserFunction or folder/myParserFunction'
         });
         if (!name) {
             return;
@@ -169,6 +268,11 @@ export {};`;
         const template = this.createFunctionTemplate(name, description, type);
         const filePath = path.join(this.functionsDir, `${name}.ts`);
         try {
+            // Ensure the directory exists
+            const dirPath = path.dirname(filePath);
+            if (!fs.existsSync(dirPath)) {
+                fs.mkdirSync(dirPath, { recursive: true });
+            }
             fs.writeFileSync(filePath, template, 'utf8');
             // Open the new function file for editing
             const document = await vscode.workspace.openTextDocument(filePath);
@@ -178,6 +282,70 @@ export {};`;
         }
         catch (error) {
             vscode.window.showErrorMessage(`Error creating function: ${error}`);
+        }
+    }
+    async deleteFolder(folderPath) {
+        const fullFolderPath = path.join(this.functionsDir, folderPath);
+        if (!fs.existsSync(fullFolderPath)) {
+            vscode.window.showErrorMessage(`Folder '${folderPath}' not found`);
+            return;
+        }
+        try {
+            // Check if folder contains any functions
+            const functionsInFolder = this.functions.filter(func => func.relativePath.startsWith(folderPath + path.sep) ||
+                path.dirname(func.relativePath) === folderPath);
+            if (functionsInFolder.length > 0) {
+                const functionNames = functionsInFolder.map(f => f.name).join(', ');
+                const confirmation = await vscode.window.showWarningMessage(`Folder '${folderPath}' contains ${functionsInFolder.length} function(s): ${functionNames}. Delete folder and all contents?`, 'Yes, Delete All', 'Cancel');
+                if (confirmation !== 'Yes, Delete All') {
+                    return;
+                }
+            }
+            else {
+                const confirmation = await vscode.window.showWarningMessage(`Are you sure you want to delete the empty folder '${folderPath}'?`, 'Yes', 'Cancel');
+                if (confirmation !== 'Yes') {
+                    return;
+                }
+            }
+            // Remove folder and all its contents
+            fs.rmSync(fullFolderPath, { recursive: true, force: true });
+            this.loadFunctions();
+            const message = functionsInFolder.length > 0
+                ? `Folder '${folderPath}' and ${functionsInFolder.length} function(s) deleted successfully!`
+                : `Folder '${folderPath}' deleted successfully!`;
+            vscode.window.showInformationMessage(message);
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Error deleting folder: ${error}`);
+        }
+    }
+    async moveFunction(functionName, targetFolderPath) {
+        const func = this.functions.find(f => f.name === functionName);
+        if (!func) {
+            vscode.window.showErrorMessage(`Function '${functionName}' not found`);
+            return;
+        }
+        try {
+            const fileName = path.basename(func.filePath);
+            const newPath = path.join(this.functionsDir, targetFolderPath, fileName);
+            // Ensure target directory exists
+            const targetDir = path.dirname(newPath);
+            if (!fs.existsSync(targetDir)) {
+                fs.mkdirSync(targetDir, { recursive: true });
+            }
+            // Move the file
+            fs.renameSync(func.filePath, newPath);
+            // Also move compiled version if it exists
+            const compiledPath = func.filePath.replace('.ts', '.compiled.js');
+            if (fs.existsSync(compiledPath)) {
+                const newCompiledPath = newPath.replace('.ts', '.compiled.js');
+                fs.renameSync(compiledPath, newCompiledPath);
+            }
+            this.loadFunctions();
+            vscode.window.showInformationMessage(`Function '${functionName}' moved to '${targetFolderPath}'`);
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Error moving function: ${error}`);
         }
     }
     async editFunction(name) {

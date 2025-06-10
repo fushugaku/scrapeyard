@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { FunctionTreeDataProvider } from './functionTreeProvider';
 import { FunctionManager } from './functionManager';
 import { FunctionExecutor } from './functionExecutor';
@@ -22,7 +23,8 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register tree views
     vscode.window.createTreeView('scrapeyardFunctions', {
-        treeDataProvider: functionTreeProvider
+        treeDataProvider: functionTreeProvider,
+        dragAndDropController: functionTreeProvider
     });
 
     vscode.window.createTreeView('scrapeyardPipelines', {
@@ -34,6 +36,48 @@ export function activate(context: vscode.ExtensionContext) {
         await functionManager.createFunction();
         functionTreeProvider.refresh();
         pipelineTreeProvider.refresh(); // Refresh pipelines in case they reference functions
+    });
+
+    let createFolderCommand = vscode.commands.registerCommand('scrapeyard.createFolder', async () => {
+        await functionManager.createFolder();
+        functionTreeProvider.refresh();
+    });
+
+    let deleteFolderCommand = vscode.commands.registerCommand('scrapeyard.deleteFolder', async (item: any) => {
+        // Handle both direct string calls and tree item object calls
+        const folderPath = typeof item === 'string' ? item : item?.directoryNode?.path;
+        if (folderPath !== undefined) {
+            // Get functions that will be deleted for pipeline cleanup
+            const functionsToDelete = functionManager.getFunctions().filter(func =>
+                func.relativePath.startsWith(folderPath + path.sep) ||
+                path.dirname(func.relativePath) === folderPath
+            );
+
+            // Remove deleted functions from all pipelines
+            let totalRemovedSteps = 0;
+            const affectedPipelines: string[] = [];
+
+            for (const func of functionsToDelete) {
+                const cleanup = pipelineManager.removeFunctionFromAllPipelines(func.name);
+                totalRemovedSteps += cleanup.totalRemoved;
+                affectedPipelines.push(...cleanup.affectedPipelines);
+            }
+
+            await functionManager.deleteFolder(folderPath);
+            functionTreeProvider.refresh();
+            pipelineTreeProvider.refresh();
+
+            // Show pipeline cleanup information if any pipelines were affected
+            if (totalRemovedSteps > 0) {
+                const uniquePipelines = [...new Set(affectedPipelines)];
+                const pipelineList = uniquePipelines.join(', ');
+                vscode.window.showInformationMessage(
+                    `Removed ${totalRemovedSteps} step(s) from pipeline(s): ${pipelineList}`
+                );
+            }
+        } else {
+            vscode.window.showErrorMessage('Could not determine folder path');
+        }
     });
 
     let editFunctionCommand = vscode.commands.registerCommand('scrapeyard.editFunction', async (item: any) => {
@@ -296,6 +340,8 @@ export function activate(context: vscode.ExtensionContext) {
     // Register all commands with the context
     context.subscriptions.push(
         createFunctionCommand,
+        createFolderCommand,
+        deleteFolderCommand,
         editFunctionCommand,
         deleteFunctionCommand,
         refreshFunctionsCommand,
