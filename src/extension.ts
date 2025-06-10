@@ -280,6 +280,19 @@ export function activate(context: vscode.ExtensionContext) {
         pipelineTreeProvider.refresh();
     });
 
+    // Open terminal with functions directory
+    let openTerminalWithContentsCommand = vscode.commands.registerCommand('scrapeyard.openTerminalWithContents', async () => {
+        const functionsDirectory = functionManager.getFunctionsDirectory();
+
+        const terminal = vscode.window.createTerminal({
+            name: 'Scrapeyard Functions',
+            cwd: functionsDirectory
+        });
+
+        terminal.show();
+        vscode.window.showInformationMessage(`Terminal opened in functions directory: ${functionsDirectory}`);
+    });
+
     // Register all commands with the context
     context.subscriptions.push(
         createFunctionCommand,
@@ -303,7 +316,8 @@ export function activate(context: vscode.ExtensionContext) {
         updateShortcutsCommand,
         refreshAndSyncAllCommand,
         runFunctionOnSelectionPickerCommand,
-        runPipelineOnSelectionPickerCommand
+        runPipelineOnSelectionPickerCommand,
+        openTerminalWithContentsCommand
     );
 
     // Dynamic command registration for existing functions

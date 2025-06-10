@@ -133,6 +133,11 @@
       {
         "command": "scrapeyard.runPipelineOnSelectionPicker",
         "title": "Run Pipeline on Selection..."
+      },
+      {
+        "command": "scrapeyard.openTerminalWithContents",
+        "title": "Open Terminal with Contents",
+        "icon": "$(terminal)"
       }
     ],
     "menus": {
@@ -156,6 +161,11 @@
           "command": "scrapeyard.editShortcuts",
           "when": "view == scrapeyardFunctions",
           "group": "navigation@3"
+        },
+        {
+          "command": "scrapeyard.openTerminalWithContents",
+          "when": "view == scrapeyardFunctions",
+          "group": "navigation@4"
         },
         {
           "command": "scrapeyard.createPipeline",

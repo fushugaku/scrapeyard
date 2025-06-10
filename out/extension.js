@@ -265,8 +265,18 @@ function activate(context) {
         functionTreeProvider.refresh();
         pipelineTreeProvider.refresh();
     });
+    // Open terminal with functions directory
+    let openTerminalWithContentsCommand = vscode.commands.registerCommand('scrapeyard.openTerminalWithContents', async () => {
+        const functionsDirectory = functionManager.getFunctionsDirectory();
+        const terminal = vscode.window.createTerminal({
+            name: 'Scrapeyard Functions',
+            cwd: functionsDirectory
+        });
+        terminal.show();
+        vscode.window.showInformationMessage(`Terminal opened in functions directory: ${functionsDirectory}`);
+    });
     // Register all commands with the context
-    context.subscriptions.push(createFunctionCommand, editFunctionCommand, deleteFunctionCommand, refreshFunctionsCommand, runFunctionOnFileCommand, runFunctionOnSelectionCommand, createPipelineCommand, editPipelineCommand, deletePipelineCommand, runPipelineOnFileCommand, runPipelineOnSelectionCommand, movePipelineStepUpCommand, movePipelineStepDownCommand, togglePipelineStepCommand, removePipelineStepCommand, configureKeyboardShortcutsCommand, syncKeyboardShortcutsCommand, editShortcutsCommand, updateShortcutsCommand, refreshAndSyncAllCommand, runFunctionOnSelectionPickerCommand, runPipelineOnSelectionPickerCommand);
+    context.subscriptions.push(createFunctionCommand, editFunctionCommand, deleteFunctionCommand, refreshFunctionsCommand, runFunctionOnFileCommand, runFunctionOnSelectionCommand, createPipelineCommand, editPipelineCommand, deletePipelineCommand, runPipelineOnFileCommand, runPipelineOnSelectionCommand, movePipelineStepUpCommand, movePipelineStepDownCommand, togglePipelineStepCommand, removePipelineStepCommand, configureKeyboardShortcutsCommand, syncKeyboardShortcutsCommand, editShortcutsCommand, updateShortcutsCommand, refreshAndSyncAllCommand, runFunctionOnSelectionPickerCommand, runPipelineOnSelectionPickerCommand, openTerminalWithContentsCommand);
     // Dynamic command registration for existing functions
     const functions = functionManager.getFunctions();
     const executableFunctions = functions.filter(func => func.type === 'typescript');
