@@ -27,6 +27,9 @@ export class FunctionManager {
         this.functionsDir = path.join(context.globalStorageUri?.fsPath || context.extensionPath, 'parser-functions');
         this.ensureFunctionsDirectory();
         this.loadFunctions();
+
+        // Ensure TypeScript configuration is up to date on startup
+        this.refreshTypeScriptConfig();
     }
 
     private ensureFunctionsDirectory(): void {
@@ -94,8 +97,8 @@ export {};`;
                     "types": ["node", "vscode"],
                     "typeRoots": ["./node_modules/@types"]
                 },
-                "include": ["*.ts", "*.d.ts"],
-                "exclude": ["*.compiled.js"]
+                "include": ["**/*.ts", "**/*.d.ts"],
+                "exclude": ["**/*.compiled.js", "node_modules"]
             };
 
             fs.writeFileSync(tsconfigPath, JSON.stringify(tsconfigContent, null, 2), 'utf8');
@@ -273,6 +276,10 @@ export {};`;
             }
 
             fs.mkdirSync(folderPath, { recursive: true });
+
+            // Refresh TypeScript configuration to ensure new directories are included
+            this.refreshTypeScriptConfig();
+
             vscode.window.showInformationMessage(`Folder '${folderName}' created successfully!`);
         } catch (error) {
             vscode.window.showErrorMessage(`Error creating folder: ${error}`);
@@ -306,6 +313,9 @@ export {};`;
 
             fs.writeFileSync(filePath, template, 'utf8');
 
+            // Refresh TypeScript configuration to ensure new directories are included
+            this.refreshTypeScriptConfig();
+
             // Open the new function file for editing
             const document = await vscode.workspace.openTextDocument(filePath);
             await vscode.window.showTextDocument(document);
@@ -315,6 +325,31 @@ export {};`;
         } catch (error) {
             vscode.window.showErrorMessage(`Error creating function: ${error}`);
         }
+    }
+
+    private refreshTypeScriptConfig(): void {
+        // Force recreation of tsconfig.json to ensure it includes all directories
+        const tsconfigPath = path.join(this.functionsDir, 'tsconfig.json');
+        const tsconfigContent = {
+            "compilerOptions": {
+                "target": "ES2020",
+                "module": "commonjs",
+                "lib": ["ES2020"],
+                "esModuleInterop": true,
+                "allowSyntheticDefaultImports": true,
+                "strict": true,
+                "skipLibCheck": true,
+                "forceConsistentCasingInFileNames": true,
+                "moduleResolution": "node",
+                "resolveJsonModule": true,
+                "types": ["node", "vscode"],
+                "typeRoots": ["./node_modules/@types"]
+            },
+            "include": ["**/*.ts", "**/*.d.ts"],
+            "exclude": ["**/*.compiled.js", "node_modules"]
+        };
+
+        fs.writeFileSync(tsconfigPath, JSON.stringify(tsconfigContent, null, 2), 'utf8');
     }
 
     async deleteFolder(folderPath: string): Promise<void> {

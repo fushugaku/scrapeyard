@@ -22,13 +22,18 @@ export class FunctionExecutor {
             return;
         }
 
-        const selection = activeEditor.selection;
+        let selection = activeEditor.selection;
+        let content: string;
+
         if (selection.isEmpty) {
-            vscode.window.showErrorMessage('No text selected');
-            return;
+            // No text selected, use the current line
+            const currentLine = activeEditor.document.lineAt(selection.active.line);
+            selection = new vscode.Selection(currentLine.range.start, currentLine.range.end);
+            content = currentLine.text;
+        } else {
+            content = activeEditor.document.getText(selection);
         }
 
-        const content = activeEditor.document.getText(selection);
         await this.executeFunction(functionName, content, '', true, activeEditor, selection);
     }
 

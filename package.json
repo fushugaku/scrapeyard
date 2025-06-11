@@ -3,7 +3,7 @@
   "displayName": "Scrapeyard",
   "description": "Parse and transform files using custom TypeScript functions",
   "publisher": "henry-dorsett-case",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "engines": {
     "vscode": "^1.74.0"
   },

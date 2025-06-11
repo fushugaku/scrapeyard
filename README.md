@@ -1,65 +1,133 @@
 # Scrapeyard - VSCode Extension
 
-A powerful VSCode extension for parsing and transforming files using custom TypeScript functions with full VS Code API access.
+A powerful VSCode extension for parsing and transforming files using custom TypeScript functions with full VS Code API access, advanced pipeline management, and intelligent folder organization.
 
-## Features
+## 🚀 Features
 
-- **TypeScript Functions**: Create powerful parser functions with full type safety
-- **Rich Context API**: Access file paths, selection info, and VS Code API in your functions
-- **Keyboard Shortcuts**: Bind custom shortcuts to your functions for instant access
-- **Auto-Setup**: Automatic TypeScript environment with Node.js and VS Code types
-- **Local Management**: Keep shortcuts and functions together for easy editing
-- **Sidebar Integration**: Dedicated panel for managing your parser functions
+- **🗂️ Hierarchical Function Organization**: Organize functions in folders and subfolders with drag & drop support
+- **⚙️ Advanced Pipeline Management**: Chain functions together for complex data transformations
+- **📝 TypeScript Functions**: Create powerful parser functions with full type safety and IntelliSense
+- **🎯 Smart Execution**: Run functions on selections, current line, or entire files
+- **⌨️ Keyboard Shortcuts**: Bind custom shortcuts to functions and pipelines for instant access
+- **🖱️ Drag & Drop Interface**: Easily reorganize functions between folders
+- **🗂️ Folder Management**: Create, delete, and organize function folders from the interface
+- **💻 Terminal Integration**: Quick access to functions directory via integrated terminal
+- **🔄 Auto-Setup**: Automatic TypeScript environment with Node.js and VS Code types
+- **📍 Rich Context API**: Access file paths, selection info, and VS Code API in functions
+- **🎨 Sidebar Integration**: Dedicated panels for functions and pipelines
 
-## Installation
+## 📦 Installation
 
 1. Open VSCode
 2. Go to the Extensions view (`Ctrl+Shift+X` or `Cmd+Shift+X`)
 3. Search for "Scrapeyard"
 4. Click Install
 
-## Quick Start
+## 🏃‍♂️ Quick Start
 
 ### 1. Create Your First Function
-1. Open the **Parser Functions** panel in the Explorer sidebar
+1. Open the **Scrapeyard Functions** panel in the Explorer sidebar
 2. Click the **"+"** button to create a new TypeScript function
-3. Enter a function name and optional description
-4. The function file will open with a template ready to edit
+3. Enter a function name (supports folder paths like `utils/stringHelper`)
+4. The function file opens with a template ready to edit
 
-### 2. Set Up Keyboard Shortcuts
-1. Click **"Configure Keyboard Shortcuts"** in the Parser Functions panel
-2. This creates a `shortcuts.json` file next to your functions
-3. Click **"Sync Keyboard Shortcuts"** to apply them to VS Code
-4. Your functions are now accessible via keyboard shortcuts!
+### 2. Organize with Folders
+1. Click the **📁** button to create folders for organizing functions
+2. Use **drag & drop** to move functions between folders
+3. **Right-click** folders to delete them (with safety confirmations)
 
-## Function Structure
+### 3. Create Function Pipelines
+1. Open the **Scrapeyard Pipelines** panel
+2. Click **"+"** to create a pipeline
+3. Select functions to chain together in sequence
+4. Run pipelines just like individual functions
 
-### Basic Template
+### 4. Set Up Keyboard Shortcuts
+1. Click **⌨️ "Edit Shortcuts"** in the Functions panel
+2. Configure keyboard shortcuts for functions and pipelines
+3. Shortcuts automatically update when you create new functions
+
+## 🗂️ Function Organization
+
+### Folder Structure
+Functions are organized in a hierarchical folder structure:
+
+```
+parser-functions/
+├── 📁 utils/
+│   ├── stringUtils.ts
+│   └── formatters.ts
+├── 📁 data/
+│   ├── 📁 parsers/
+│   │   ├── jsonParser.ts
+│   │   └── xmlParser.ts
+│   └── validators.ts
+├── myFunction.ts
+├── 📄 shortcuts.json
+└── 📄 scrapeyard-types.d.ts
+```
+
+### Folder Management
+- **Create folders**: Click 📁 button or use nested paths when creating functions
+- **Drag & drop**: Move functions between folders by dragging
+- **Delete folders**: Right-click → delete (confirms before removing functions)
+- **Auto-organization**: Empty folders are visible for better structure planning
+
+## ⚙️ Pipeline Management
+
+### Creating Pipelines
+1. Click **"+"** in the Pipelines panel
+2. Enter pipeline name and description
+3. Select functions to add to the pipeline sequence
+4. Functions execute in order, passing results between steps
+
+### Pipeline Features
+- **Step Management**: Enable/disable, reorder, or remove steps
+- **Visual Interface**: See pipeline flow with step indicators
+- **Error Handling**: Pipeline stops on errors with detailed feedback
+- **Context Passing**: Data flows between functions with preserved context
+
+### Example Pipeline
+```
+Text Input → Remove HTML Tags → Format JSON → Validate Structure → Clean Output
+```
+
+## 🔧 Function Structure
+
+### Enhanced Template
 ```typescript
 import * as fs from 'fs';
 import * as path from 'path';
 
-export default (input: string, ctx: Context): string => {
+export default (input: string, ctx: Context): { result: string; ctx: Context } => {
     // Your parsing logic here
     // Input: string containing file content or selection
     // Context: metadata about the file and selection + VS Code API
-    // Output: string with modified content
+    // Output: object with result (transformed text) and ctx (updated context)
     
     const result = input.toUpperCase();
     
     // Access context information:
     // ctx.fullPath - path to the file
-    // ctx.selection.startLine, endLine, startChar, endChar
+    // ctx.selection.startLine, endLine, startChar, endChar - selection bounds
     // ctx.params - additional parameters
-    // ctx.vscode - VS Code API
+    // ctx.vscode - VS Code API (show messages, create files, etc.)
     
-    return result;
+    // Example VS Code API usage:
+    ctx.vscode.window.showInformationMessage('Processing complete!');
+    
+    // You can modify the context to pass data to the next function in a pipeline
+    ctx.params.processedLines = result.split('\n').length;
+    
+    // Uncomment to write to file:
+    // const outputPath = path.join(path.dirname(ctx.fullPath), 'output.txt');
+    // fs.writeFileSync(outputPath, result, 'utf-8');
+    
+    return { result, ctx };
 };
 ```
 
 ### Global Context Interface
-The `Context` interface is globally available in all functions:
-
 ```typescript
 interface Context {
     fullPath: string; // full path of file or file of selection
@@ -70,86 +138,78 @@ interface Context {
         endChar: number; // last character of selection, if file - last char of file
     };
     params: {
-        [x: string]: any; // passed parameters from other functions
+        [x: string]: any; // passed parameters that can be passed from other functions
     };
-    vscode: typeof vscode; // Full VS Code API access
+    vscode: typeof vscode; // VS Code API for editor interactions
 }
 ```
 
-## Advanced Examples
+## 🎯 Running Functions & Pipelines
 
-### File Processing with VS Code API
-```typescript
-import * as fs from 'fs';
-import * as path from 'path';
+### Smart Execution Modes
+- **With Selection**: Runs on selected text
+- **Without Selection**: Automatically runs on current line (no more "No text selected" errors!)
+- **Entire File**: Processes the whole document
 
-export default (input: string, ctx: Context): string => {
-    const result = input.replace(/TODO:/g, '✅ DONE:');
-    
-    // Show progress notification
-    ctx.vscode.window.showInformationMessage(`Processed ${ctx.selection.endLine - ctx.selection.startLine + 1} lines`);
-    
-    // Save to new file next to original
-    const outputPath = path.join(
-        path.dirname(ctx.fullPath), 
-        `processed_${path.basename(ctx.fullPath)}`
-    );
-    fs.writeFileSync(outputPath, result, 'utf-8');
-    
-    // Open the new file
-    ctx.vscode.workspace.openTextDocument(outputPath)
-        .then(doc => ctx.vscode.window.showTextDocument(doc));
-    
-    return result;
-};
+### Execution Methods
+
+#### Via Keyboard Shortcuts
+- Press your configured shortcut (e.g., `Ctrl+Shift+F1`)
+- Works on selection, current line, or entire file
+
+#### Via Context Menu
+1. Select text in any editor (optional)
+2. Right-click → "Scrapeyard"
+3. Choose function or pipeline from quick pick
+
+#### Via Sidebar
+1. Right-click function/pipeline in the panel
+2. Choose "Run on Current File" or "Run on Selection"
+
+#### Via Terminal Integration
+1. Click **💻** terminal button in Functions panel
+2. Opens integrated terminal in functions directory
+3. Use command line tools or scripts directly
+
+## 🗂️ Advanced File Management
+
+### Functions Directory Structure
+```
+parser-functions/
+├── 📁 utilities/
+│   ├── 📁 string/
+│   │   ├── camelCase.ts
+│   │   └── kebabCase.ts
+│   └── 📁 array/
+│       └── unique.ts
+├── 📁 parsers/
+│   ├── csvParser.ts
+│   └── logParser.ts
+├── mainFunction.ts           # Root level functions
+├── shortcuts.json            # Keyboard shortcuts (editable)
+├── scrapeyard-types.d.ts     # Global type definitions
+├── tsconfig.json             # TypeScript configuration
+├── package.json              # Dependencies
+└── node_modules/             # Auto-installed types
 ```
 
-### Interactive Function with User Input
-```typescript
-export default async (input: string, ctx: Context): Promise<string> => {
-    // Get user input
-    const prefix = await ctx.vscode.window.showInputBox({
-        prompt: 'Enter prefix to add to each line:',
-        placeHolder: '> '
-    });
-    
-    if (!prefix) return input;
-    
-    // Process lines
-    const lines = input.split('\n');
-    const result = lines.map(line => `${prefix}${line}`).join('\n');
-    
-    // Show completion message
-    ctx.vscode.window.showInformationMessage(`Added prefix to ${lines.length} lines`);
-    
-    return result;
-};
-```
+### Enhanced Management Features
+- **Create**: Click "+" for functions, 📁 for folders
+- **Edit**: Click edit icon or double-click items
+- **Delete**: Trash icon with confirmation dialogs
+- **Move**: Drag & drop functions between folders
+- **Terminal**: Direct access to functions directory
+- **Auto-refresh**: Automatic updates when files change
 
-### JSON Processing with Error Handling
-```typescript
-export default (input: string, ctx: Context): string => {
-    try {
-        const parsed = JSON.parse(input);
-        const formatted = JSON.stringify(parsed, null, 2);
-        
-        ctx.vscode.window.showInformationMessage('JSON formatted successfully!');
-        return formatted;
-    } catch (error) {
-        ctx.vscode.window.showErrorMessage(`JSON parsing error: ${error.message}`);
-        return input; // Return original if parsing fails
-    }
-};
-```
+## ⌨️ Keyboard Shortcuts
 
-## Keyboard Shortcuts
+### Auto-Generated Shortcuts
+The extension automatically creates shortcuts for:
+- All executable functions (`.ts` files)
+- All pipelines
+- Both "on selection" and "on file" variants
 
-### Setting Up Shortcuts
-1. **Configure**: Click "Configure Keyboard Shortcuts" in the Parser Functions panel
-2. **Edit**: Modify the generated `shortcuts.json` file as needed
-3. **Sync**: Click "Sync Keyboard Shortcuts" to apply to VS Code
-
-### Default Shortcut Pattern
+### Shortcut Configuration
 ```json
 [
   {
@@ -158,147 +218,142 @@ export default (input: string, ctx: Context): string => {
     "when": "editorTextFocus"
   },
   {
-    "key": "ctrl+alt+f1",
+    "key": "ctrl+alt+f1", 
     "command": "fileParser.run.yourFunction.onFile",
     "when": "editorTextFocus"
-  }
-]
-```
-
-### Custom Shortcuts Example
-```json
-[
-  {
-    "key": "cmd+k cmd+u",
-    "command": "fileParser.run.toUpper.onSelection",
-    "when": "editorTextFocus && editorLangId == 'markdown'"
   },
   {
-    "key": "ctrl+shift+j",
-    "command": "fileParser.run.formatJSON.onFile",
+    "key": "ctrl+shift+p1",
+    "command": "pipeline.run.yourPipeline.onSelection",
     "when": "editorTextFocus"
   }
 ]
 ```
 
-## Running Functions
+### Shortcut Management
+- **Edit**: Click ⌨️ button in Functions panel
+- **Sync**: Automatic synchronization with VS Code
+- **Update**: Auto-updates when functions/pipelines change
 
-### Via Keyboard Shortcuts
-- Press your configured shortcut (e.g., `Ctrl+Shift+F1`)
-- Functions run on selection or entire file depending on configuration
-
-### Via Context Menu
-1. Select text in any editor
-2. Right-click → "Scrapeyard"
-3. Choose a function from the quick pick list
-
-### Via Sidebar
-1. Right-click on a function in the Parser Functions panel
-2. Choose "Run on Current File" or "Run on Selection"
-
-## File Management
-
-### Functions Directory Structure
-```
-parser-functions/
-├── myFunction.ts           # Your executable functions
-├── anotherFunction.ts      # More functions
-├── shortcuts.json          # Keyboard shortcuts (editable)
-├── scrapeyard-types.d.ts   # Global type definitions
-├── tsconfig.json           # TypeScript configuration
-├── package.json            # Dependencies
-└── node_modules/           # Auto-installed types
-```
-
-### Managing Functions
-- **Create**: Click "+" in the Parser Functions panel
-- **Edit**: Click the edit icon next to a function
-- **Delete**: Click the trash icon next to a function
-- **Refresh**: Click the refresh icon to reload the function list
-
-## Configuration
+## 🔧 Configuration
 
 ### Extension Settings
 - `fileParser.nodeModulesPath`: Path to node_modules for importing external packages
 - `fileParser.functionsPath`: Custom path for storing functions
 
-### TypeScript Setup
-The extension automatically sets up:
-- TypeScript compiler configuration
-- Node.js type definitions (`@types/node`)
-- VS Code API types (`@types/vscode`)
-- Global Context interface
+### Advanced TypeScript Setup
+The extension automatically configures:
+- **Recursive TypeScript scanning**: `"include": ["**/*.ts", "**/*.d.ts"]`
+- **Global type definitions**: Available in all subdirectories
+- **Node.js types**: `@types/node` with latest definitions
+- **VS Code API types**: `@types/vscode` for editor integration
+- **Auto-compilation**: On-demand TypeScript compilation
 
-## Using External Packages
+## 📁 Working with External Packages
 
-### Setting Node Modules Path
-1. Use Command Palette: "Set Node Modules Path"
-2. Select your project's `node_modules` directory
-3. Import packages in your functions:
-
+### Package Integration
 ```typescript
 import * as lodash from 'lodash';
 import * as cheerio from 'cheerio';
+import axios from 'axios';
 
-export default (input: string, ctx: Context): string => {
-    const $ = cheerio.load(input);
-    const links = $('a').map((i, el) => $(el).attr('href')).get();
-    return lodash.uniq(links).join('\n');
+export default async (input: string, ctx: Context): Promise<{ result: string; ctx: Context }> => {
+    const urls = input.split('\n').filter(line => line.trim());
+    
+    const results = await Promise.all(
+        urls.map(async url => {
+            const response = await axios.get(url);
+            const $ = cheerio.load(response.data);
+            return $('title').text();
+        })
+    );
+    
+    const result = lodash.uniq(results).join('\n');
+    
+    ctx.vscode.window.showInformationMessage(`Processed ${urls.length} URLs`);
+    
+    return { result, ctx };
 };
 ```
 
-## Commands
+## 🔗 Pipeline Examples
 
-Access these via Command Palette (`Cmd+Shift+P`):
+### Data Processing Pipeline
+```
+Raw CSV → Parse CSV → Validate Data → Transform Fields → Generate Report
+```
 
-- `Configure Keyboard Shortcuts` - Set up function shortcuts
-- `Sync Keyboard Shortcuts` - Apply shortcuts to VS Code
-- `Set Node Modules Path` - Configure external package imports
-- `Apply Functions...` - Run function on selection via quick pick
+### Web Content Pipeline  
+```
+HTML Input → Extract Links → Fetch Pages → Parse Metadata → Generate Summary
+```
 
-## Tips & Best Practices
+### Code Processing Pipeline
+```
+Source Code → Remove Comments → Format Code → Add Headers → Optimize Imports
+```
 
-### Performance
-- Functions are compiled on-demand for optimal performance
-- Use async/await for VS Code API calls that return promises
+## 📋 Available Commands
 
-### Error Handling
-- Always handle potential errors in your functions
+Access via Command Palette (`Cmd+Shift+P`):
+
+- `Scrapeyard: Create Function` - Create new TypeScript function
+- `Scrapeyard: Create Folder` - Create function organization folder
+- `Scrapeyard: Create Pipeline` - Create new function pipeline
+- `Scrapeyard: Edit Shortcuts` - Configure keyboard shortcuts
+- `Scrapeyard: Open Terminal` - Open terminal in functions directory
+- `Scrapeyard: Refresh All` - Reload functions and pipelines
+- `Scrapeyard: Run Function on Selection` - Quick pick function runner
+- `Scrapeyard: Run Pipeline on Selection` - Quick pick pipeline runner
+
+## 💡 Tips & Best Practices
+
+### 🗂️ Organization
+- Group related functions in folders (e.g., `text/`, `data/`, `web/`)
+- Use descriptive names for functions and pipelines
+- Keep utility functions in a dedicated `utils/` folder
+
+### ⚡ Performance
+- Functions compile on-demand for optimal performance
+- Use async/await for VS Code API calls and external requests
+- Cache compiled functions automatically
+
+### 🛡️ Error Handling
+- Always handle potential errors in functions
 - Use try-catch blocks for file operations and API calls
 - Leverage VS Code's notification system for user feedback
 
-### Debugging
-- Use `console.log()` for debugging (check Developer Console)
-- Use VS Code's built-in TypeScript error detection
+### 🔧 Development
+- Take advantage of full TypeScript IntelliSense in nested folders
+- Use JSDoc comments for better function descriptions
 - Test functions on small selections before running on large files
 
-### Function Organization
-- Use descriptive function names for easy identification
-- Add JSDoc comments for function descriptions
-- Keep related functions together
-- Use the shortcuts.json file for custom key bindings
+### 🔄 Pipeline Design
+- Design functions to be composable and reusable
+- Use the context parameter to pass data between pipeline steps
+- Handle both string and object return formats for flexibility
 
-## Troubleshooting
+## 🐛 Troubleshooting
 
-### TypeScript Errors
-- Ensure your functions directory has proper TypeScript setup
-- Check that Node.js and VS Code types are installed
-- Refresh the function list if types aren't recognized
+### TypeScript Issues
+- **Nested folder types**: Global types automatically available in all subdirectories
+- **Missing IntelliSense**: Extension auto-refreshes TypeScript config
+- **Import errors**: Check node_modules path configuration
 
-### Keyboard Shortcuts Not Working
-- Verify shortcuts.json syntax is valid JSON
-- Check for conflicting keybindings in VS Code
-- Use "Sync Keyboard Shortcuts" after editing shortcuts.json
+### Execution Problems
+- **Functions not running**: Check Output panel for detailed errors
+- **No selection needed**: Functions now work on current line automatically
+- **Pipeline failures**: Each step must return valid result format
 
-### Function Execution Errors
-- Check the Output panel for detailed error messages
-- Ensure your function exports a default function
-- Verify the function signature matches the expected format
+### Interface Issues
+- **Drag & drop not working**: Ensure you're dragging functions (not folders) to folders
+- **Folders not showing**: Create folders using the 📁 button or nested function names
+- **Terminal not opening**: Check functions directory permissions
 
-## Contributing
+## 🤝 Contributing
 
 Feel free to contribute to this project by submitting issues or pull requests on GitHub.
 
-## License
+## 📄 License
 
 MIT License 
